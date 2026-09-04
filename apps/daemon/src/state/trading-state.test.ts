@@ -8,7 +8,14 @@ const T0 = Date.UTC(2026, 8, 4, 10, 0, 0);
 function make(now: { t: number }, limits = RiskLimits.parse({})) {
   const { db } = openDb({ path: ":memory:" });
   const mk = () =>
-    new TradingStateStore({ db, log: createLogger("silent"), limits, tradingMode: "live", tz: "UTC", now: () => now.t });
+    new TradingStateStore({
+      db,
+      log: createLogger("silent"),
+      limits,
+      tradingMode: "live",
+      tz: "UTC",
+      now: () => now.t,
+    });
   return { db, mk };
 }
 

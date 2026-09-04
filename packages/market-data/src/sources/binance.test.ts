@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { HOUR, fakeFetch, jsonResponse, klineRow, loadFixture } from "../__fixtures__/helpers.js";
 import { HttpError } from "../http.js";
-import { GeoBlockedError, backfillBinance, fetchBinanceKlines, isGeoBlockResponse, parseBinanceKlines } from "./binance.js";
+import {
+  GeoBlockedError,
+  backfillBinance,
+  fetchBinanceKlines,
+  isGeoBlockResponse,
+  parseBinanceKlines,
+} from "./binance.js";
 
 describe("binance geo-block detection", () => {
   const blocked = loadFixture<{ code: number; msg: string }>("binance-klines-1h.json");
@@ -16,7 +22,9 @@ describe("binance geo-block detection", () => {
 
   it("fetchBinanceKlines throws a typed GeoBlockedError on HTTP 451 without retrying", async () => {
     const fetch = fakeFetch(() => jsonResponse(blocked, 451));
-    const err = await fetchBinanceKlines({ fetch, symbol: "BTCUSDT", interval: "1h", attempts: 3 }).catch((e: unknown) => e);
+    const err = await fetchBinanceKlines({ fetch, symbol: "BTCUSDT", interval: "1h", attempts: 3 }).catch(
+      (e: unknown) => e,
+    );
     expect(err).toBeInstanceOf(GeoBlockedError);
     expect(err).toBeInstanceOf(Error);
     expect((err as GeoBlockedError).status).toBe(451);
@@ -33,7 +41,9 @@ describe("binance geo-block detection", () => {
 
   it("backfillBinance surfaces the geo-block from the first page", async () => {
     const fetch = fakeFetch(() => jsonResponse(blocked, 451));
-    await expect(backfillBinance({ fetch, symbol: "BTCUSDT", interval: "1h", from: 0, to: 10 * HOUR })).rejects.toBeInstanceOf(GeoBlockedError);
+    await expect(
+      backfillBinance({ fetch, symbol: "BTCUSDT", interval: "1h", from: 0, to: 10 * HOUR }),
+    ).rejects.toBeInstanceOf(GeoBlockedError);
   });
 });
 

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { EwCandidate } from "@surf/core";
 import type { Swing } from "@surf/core";
-import { buildImpulseCandidate, dedupeCandidates, enumerateCandidates, scoreCandidate } from "./candidates.js";
+import {
+  buildImpulseCandidate,
+  dedupeCandidates,
+  enumerateCandidates,
+  scoreCandidate,
+} from "./candidates.js";
 import type { CandidateContext, RawCandidate } from "./candidates.js";
 import { analyze } from "./engine.js";
 import { retraceLevel } from "./fib.js";
@@ -92,7 +97,9 @@ describe("complete impulse", () => {
 
   it("discounts a complete structure whose first target is already reached", () => {
     const deep = syntheticImpulse({ seed: 5, tail: [{ price: P5 - 12, bars: 12 }] });
-    const c = analyze(deep.candles).candidates.find((x) => x.position === "complete" && x.pattern === "impulse");
+    const c = analyze(deep.candles).candidates.find(
+      (x) => x.position === "complete" && x.pattern === "impulse",
+    );
     expect(c?.notes.some((n) => n.includes("already reached"))).toBe(true);
     expect(c?.score ?? 1).toBeLessThan(a.candidates[0]?.score ?? 0);
   });
@@ -188,22 +195,46 @@ describe("corrections", () => {
       ],
     });
     const cands = analyze(series.candles, { topK: 10 }).candidates;
-    expect(cands.some((x) => x.position === "in-wave-c" && x.pivots[0]?.price === series.pivotPrices[5])).toBe(false);
+    expect(
+      cands.some((x) => x.position === "in-wave-c" && x.pivots[0]?.price === series.pivotPrices[5]),
+    ).toBe(false);
   });
 });
 
 describe("enumeration mechanics", () => {
-  const swing = (index: number, price: number, kind: "high" | "low"): Swing => ({ index, time: index * 3_600_000, price, kind });
+  const swing = (index: number, price: number, kind: "high" | "low"): Swing => ({
+    index,
+    time: index * 3_600_000,
+    price,
+    kind,
+  });
   const ctx: CandidateContext = { interval: "1h", lastClose: 105, rsi: [], intervalMs: 3_600_000 };
 
   it("builds an in-wave-2 candidate directly from pivots and rejects a W2 beyond origin", () => {
-    const ok = buildImpulseCandidate([swing(0, 100, "low"), swing(10, 110, "high")], swing(15, 104, "low"), ctx, 3);
+    const ok = buildImpulseCandidate(
+      [swing(0, 100, "low"), swing(10, 110, "high")],
+      swing(15, 104, "low"),
+      ctx,
+      3,
+    );
     expect(ok?.base.position).toBe("in-wave-2");
     expect(ok?.base.invalidation.price).toBe(100);
-    const bad = buildImpulseCandidate([swing(0, 100, "low"), swing(10, 110, "high")], swing(15, 99, "low"), ctx, 3);
+    const bad = buildImpulseCandidate(
+      [swing(0, 100, "low"), swing(10, 110, "high")],
+      swing(15, 99, "low"),
+      ctx,
+      3,
+    );
     expect(bad).toBeNull();
     const notShortest = buildImpulseCandidate(
-      [swing(0, 100, "low"), swing(1, 110, "high"), swing(2, 105, "low"), swing(3, 113, "high"), swing(4, 111, "low"), swing(5, 121, "high")],
+      [
+        swing(0, 100, "low"),
+        swing(1, 110, "high"),
+        swing(2, 105, "low"),
+        swing(3, 113, "high"),
+        swing(4, 111, "low"),
+        swing(5, 121, "high"),
+      ],
       null,
       ctx,
       3,
@@ -223,9 +254,24 @@ describe("enumeration mechanics", () => {
   });
 
   it("merges near-identical pivots (within two bars) but not different structures", () => {
-    const r1 = buildImpulseCandidate([swing(0, 100, "low"), swing(10, 110, "high")], swing(15, 104, "low"), ctx, 1.5) as RawCandidate;
-    const r2 = buildImpulseCandidate([swing(1, 100.2, "low"), swing(11, 110.1, "high")], swing(15, 104, "low"), ctx, 3) as RawCandidate;
-    const r3 = buildImpulseCandidate([swing(4, 100, "low"), swing(10, 110, "high")], swing(15, 104, "low"), ctx, 6) as RawCandidate;
+    const r1 = buildImpulseCandidate(
+      [swing(0, 100, "low"), swing(10, 110, "high")],
+      swing(15, 104, "low"),
+      ctx,
+      1.5,
+    ) as RawCandidate;
+    const r2 = buildImpulseCandidate(
+      [swing(1, 100.2, "low"), swing(11, 110.1, "high")],
+      swing(15, 104, "low"),
+      ctx,
+      3,
+    ) as RawCandidate;
+    const r3 = buildImpulseCandidate(
+      [swing(4, 100, "low"), swing(10, 110, "high")],
+      swing(15, 104, "low"),
+      ctx,
+      6,
+    ) as RawCandidate;
     expect(dedupeCandidates([r1, r2], ctx.intervalMs)).toHaveLength(1);
     expect(dedupeCandidates([r1, r3], ctx.intervalMs)).toHaveLength(2);
   });
@@ -234,9 +280,14 @@ describe("enumeration mechanics", () => {
     const series = syntheticImpulse({ seed: 5, tail: [{ price: P5 - 8, bars: 12 }] });
     const degrees = [1.5, 3, 6].map((k) => zigzagDetailed(series.candles, { k }));
     const closes = series.candles.map((c) => c.close);
-    const list = enumerateCandidates(degrees, { ...ctx, lastClose: closes[closes.length - 1] ?? 0 }, { topK: 2 });
+    const list = enumerateCandidates(
+      degrees,
+      { ...ctx, lastClose: closes[closes.length - 1] ?? 0 },
+      { topK: 2 },
+    );
     expect(list.length).toBeLessThanOrEqual(2);
-    for (let i = 1; i < list.length; i++) expect(list[i - 1]?.score ?? 0).toBeGreaterThanOrEqual(list[i]?.score ?? 0);
+    for (let i = 1; i < list.length; i++)
+      expect(list[i - 1]?.score ?? 0).toBeGreaterThanOrEqual(list[i]?.score ?? 0);
     for (const c of list) expect(EwCandidate.safeParse(c).success).toBe(true);
   });
 });

@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RETRY_SCHEDULE, TranscriptChain } from "./chain.js";
-import { TranscriptAuthError, TranscriptBlockedError, TranscriptError, TranscriptRateLimitError } from "./errors.js";
+import {
+  TranscriptAuthError,
+  TranscriptBlockedError,
+  TranscriptError,
+  TranscriptRateLimitError,
+} from "./errors.js";
 import { buildTranscript, type Transcript, type TranscriptProvider } from "./types.js";
 
 const MIN = 60_000;
-const T: Transcript = buildTranscript({ videoId: "3wXfppSKkpg", language: "en", source: "stub", segments: [{ start: 0, duration: 1, text: "hi" }], fetchedAt: 0 });
+const T: Transcript = buildTranscript({
+  videoId: "3wXfppSKkpg",
+  language: "en",
+  source: "stub",
+  segments: [{ start: 0, duration: 1, text: "hi" }],
+  fetchedAt: 0,
+});
 
 type Behaviour = Transcript | null | Error;
 function stub(name: string, ...behaviours: Behaviour[]): TranscriptProvider & { calls: number } {
@@ -45,7 +56,10 @@ describe("TranscriptChain.fetch", () => {
     const chain = new TranscriptChain([a, b, c]);
     const r = await chain.fetch("3wXfppSKkpg");
     expect(r.transcript).toBe(T);
-    expect(r.attempts.map((x) => [x.provider, x.outcome])).toEqual([["a", "none"], ["b", "ok"]]);
+    expect(r.attempts.map((x) => [x.provider, x.outcome])).toEqual([
+      ["a", "none"],
+      ["b", "ok"],
+    ]);
     expect(c.calls).toBe(0);
     expect(r.blocked).toBe(false);
   });
@@ -74,7 +88,10 @@ describe("TranscriptChain.fetch", () => {
     expect(r.attempts.map((x) => x.outcome)).toEqual(["fatal", "blocked"]);
     expect(r.blocked).toBe(true);
 
-    const mixed = new TranscriptChain([stub("innertube", new TranscriptBlockedError("innertube", "http-429")), stub("yt-dlp", null)]);
+    const mixed = new TranscriptChain([
+      stub("innertube", new TranscriptBlockedError("innertube", "http-429")),
+      stub("yt-dlp", null),
+    ]);
     expect((await mixed.fetch("3wXfppSKkpg")).blocked).toBe(false);
   });
 
@@ -94,7 +111,14 @@ describe("TranscriptChain.fetchWithRetry", () => {
   it("default schedule: first try at T+10min, then 20/40/80/160 min backoff", () => {
     const chain = new TranscriptChain([stub("a", null)]);
     expect(DEFAULT_RETRY_SCHEDULE).toEqual([20 * MIN, 40 * MIN, 80 * MIN, 160 * MIN]);
-    expect([0, 1, 2, 3, 4, 9].map((r) => chain.retryDelay(r))).toEqual([20 * MIN, 40 * MIN, 80 * MIN, 160 * MIN, 160 * MIN, 160 * MIN]);
+    expect([0, 1, 2, 3, 4, 9].map((r) => chain.retryDelay(r))).toEqual([
+      20 * MIN,
+      40 * MIN,
+      80 * MIN,
+      160 * MIN,
+      160 * MIN,
+      160 * MIN,
+    ]);
   });
 
   it("waits the initial delay, retries on the schedule and returns ok", async () => {
@@ -126,7 +150,10 @@ describe("TranscriptChain.fetchWithRetry", () => {
   it("stops immediately with blocked when every provider is blocked/fatal", async () => {
     const time = fakeTime();
     const chain = new TranscriptChain(
-      [stub("supadata", new TranscriptAuthError("supadata", "unauthorized", 401)), stub("innertube", new TranscriptBlockedError("innertube", "recaptcha"))],
+      [
+        stub("supadata", new TranscriptAuthError("supadata", "unauthorized", 401)),
+        stub("innertube", new TranscriptBlockedError("innertube", "recaptcha")),
+      ],
       { clock: time.clock, sleep: time.sleep },
     );
     const r = await chain.fetchWithRetry("3wXfppSKkpg", { immediate: true });
@@ -138,10 +165,13 @@ describe("TranscriptChain.fetchWithRetry", () => {
 
   it("a blocked direct path plus a working Supadata still succeeds", async () => {
     const time = fakeTime();
-    const chain = new TranscriptChain([stub("supadata", null, T), stub("innertube", new TranscriptBlockedError("innertube", "recaptcha"))], {
-      clock: time.clock,
-      sleep: time.sleep,
-    });
+    const chain = new TranscriptChain(
+      [stub("supadata", null, T), stub("innertube", new TranscriptBlockedError("innertube", "recaptcha"))],
+      {
+        clock: time.clock,
+        sleep: time.sleep,
+      },
+    );
     const r = await chain.fetchWithRetry("3wXfppSKkpg", { immediate: true });
     expect(r.status).toBe("ok");
     expect(r.rounds).toBe(2);
@@ -150,12 +180,15 @@ describe("TranscriptChain.fetchWithRetry", () => {
 
   it("honours Retry-After when larger than the scheduled delay and custom schedules", async () => {
     const time = fakeTime();
-    const chain = new TranscriptChain([stub("supadata", new TranscriptRateLimitError("supadata", 3 * MIN), T)], {
-      clock: time.clock,
-      sleep: time.sleep,
-      initialDelayMs: 0,
-      retrySchedule: [1 * MIN],
-    });
+    const chain = new TranscriptChain(
+      [stub("supadata", new TranscriptRateLimitError("supadata", 3 * MIN), T)],
+      {
+        clock: time.clock,
+        sleep: time.sleep,
+        initialDelayMs: 0,
+        retrySchedule: [1 * MIN],
+      },
+    );
     const r = await chain.fetchWithRetry("3wXfppSKkpg");
     expect(r.status).toBe("ok");
     expect(time.sleeps).toEqual([3 * MIN]);

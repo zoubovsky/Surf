@@ -29,9 +29,20 @@ describe("crossCheck", () => {
   });
 
   it("missing secondary and bucket/interval mismatches are not ok and carry no deviation", () => {
-    expect(crossCheck(strike, null, 1)).toMatchObject({ ok: false, reason: "no-secondary", deviationPct: null, secondary: null });
-    expect(crossCheck(strike, candle(T - HOUR, { venue: "coinbase", close: 80_000 }), 1)).toMatchObject({ ok: false, reason: "bucket-mismatch", deviationPct: null });
-    expect(crossCheck(strike, candle(T, { venue: "coinbase", interval: "4h", close: 80_000 }), 1)).toMatchObject({ ok: false, reason: "interval-mismatch" });
+    expect(crossCheck(strike, null, 1)).toMatchObject({
+      ok: false,
+      reason: "no-secondary",
+      deviationPct: null,
+      secondary: null,
+    });
+    expect(crossCheck(strike, candle(T - HOUR, { venue: "coinbase", close: 80_000 }), 1)).toMatchObject({
+      ok: false,
+      reason: "bucket-mismatch",
+      deviationPct: null,
+    });
+    expect(
+      crossCheck(strike, candle(T, { venue: "coinbase", interval: "4h", close: 80_000 }), 1),
+    ).toMatchObject({ ok: false, reason: "interval-mismatch" });
   });
 });
 

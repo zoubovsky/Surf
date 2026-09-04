@@ -21,7 +21,13 @@ describe("parseStrikeKlines (recorded fixture)", () => {
     const out = parseStrikeKlines(raw, { symbol: "BTC-USD", interval: "1h" });
     expect(out).toHaveLength(raw.length);
     const first = out[0]!;
-    expect(first).toMatchObject({ venue: "strike", symbol: "BTC-USD", interval: "1h", openTime: 1788508800000, closeTime: 1788512399999 });
+    expect(first).toMatchObject({
+      venue: "strike",
+      symbol: "BTC-USD",
+      interval: "1h",
+      openTime: 1788508800000,
+      closeTime: 1788512399999,
+    });
     expect(first.open).toBeCloseTo(80630.52574234, 6);
     expect(first.high).toBeCloseTo(81222.36742684, 6);
     expect(first.low).toBeCloseTo(80502.90111308, 6);
@@ -39,13 +45,20 @@ describe("parseStrikeKlines (recorded fixture)", () => {
 
   it("rejects malformed rows", () => {
     expect(() => parseStrikeKlines([[1, "x"]], { symbol: "BTC-USD", interval: "1h" })).toThrow();
-    expect(() => parseStrikeKlines([[1, "nope", "1", "1", "1", "1", 2, "1", 1, "1", "1", "0"]], { symbol: "BTC-USD", interval: "1h" })).toThrow(/finite/);
+    expect(() =>
+      parseStrikeKlines([[1, "nope", "1", "1", "1", "1", 2, "1", 1, "1", "1", "0"]], {
+        symbol: "BTC-USD",
+        interval: "1h",
+      }),
+    ).toThrow(/finite/);
   });
 });
 
 describe("Strike stats parsers (recorded fixtures)", () => {
   it("funding history: columns [ts, funding_rate], hourly points, days + symbol", () => {
-    const raw = loadFixture<{ columns: string[]; data: unknown[][]; days: number; symbol: string }>("strike-funding-history.json");
+    const raw = loadFixture<{ columns: string[]; data: unknown[][]; days: number; symbol: string }>(
+      "strike-funding-history.json",
+    );
     expect(raw.columns).toEqual(["ts", "funding_rate"]);
     const out = parseStrikeFundingHistory(raw);
     expect(out.symbol).toBe("BTC-USD");
@@ -53,7 +66,8 @@ describe("Strike stats parsers (recorded fixtures)", () => {
     expect(out.points).toHaveLength(raw.data.length);
     expect(out.points[0]).toEqual({ ts: 1785949200000, fundingRate: 0.0000125 });
     expect(out.points[1]!.ts - out.points[0]!.ts).toBe(HOUR);
-    for (let i = 1; i < out.points.length; i++) expect(out.points[i]!.ts).toBeGreaterThan(out.points[i - 1]!.ts);
+    for (let i = 1; i < out.points.length; i++)
+      expect(out.points[i]!.ts).toBeGreaterThan(out.points[i - 1]!.ts);
   });
 
   it("open interest history: columns [ts, open_interest, volume], interval + symbol", () => {
@@ -78,17 +92,34 @@ describe("Strike stats parsers (recorded fixtures)", () => {
   });
 
   it("rejects a row whose width disagrees with columns", () => {
-    expect(() => parseStrikeFundingHistory({ columns: ["ts", "funding_rate"], data: [[1, 2, 3]] })).toThrow(/expected 2/);
+    expect(() => parseStrikeFundingHistory({ columns: ["ts", "funding_rate"], data: [[1, 2, 3]] })).toThrow(
+      /expected 2/,
+    );
   });
 });
 
 describe("fetchStrike* request building", () => {
   it("klines: encodes params and clamps limit to 1500", async () => {
     const fetch = fakeFetch(() => [klineRow(0)]);
-    await fetchStrikeKlines({ fetch, symbol: "BTC-USD", interval: "1h", priceType: "index", startTime: 5, endTime: 9, limit: 99_999 });
+    await fetchStrikeKlines({
+      fetch,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      startTime: 5,
+      endTime: 9,
+      limit: 99_999,
+    });
     const u = fetch.calls[0]!;
     expect(u.origin + u.pathname).toBe("https://api.strikefinance.org/price/v2/klines");
-    expect(Object.fromEntries(u.searchParams)).toEqual({ symbol: "BTC-USD", interval: "1h", priceType: "index", startTime: "5", endTime: "9", limit: "1500" });
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      startTime: "5",
+      endTime: "9",
+      limit: "1500",
+    });
   });
 
   it("stats endpoints hit /stat/v1/stats/coin/history/* and premiumIndex hits /price/v2/premiumIndex", async () => {
@@ -109,14 +140,22 @@ describe("fetchStrike* request building", () => {
 
   it("4xx surfaces as HttpError without retrying", async () => {
     const fetch = fakeFetch(() => jsonResponse({ error: "symbol parameter is required" }, 400));
-    await expect(fetchStrikeFundingHistory({ fetch, symbol: "", attempts: 3 })).rejects.toBeInstanceOf(HttpError);
+    await expect(fetchStrikeFundingHistory({ fetch, symbol: "", attempts: 3 })).rejects.toBeInstanceOf(
+      HttpError,
+    );
     expect(fetch.calls).toHaveLength(1);
   });
 
   it("5xx is retried up to `attempts`", async () => {
     let n = 0;
     const fetch = fakeFetch(() => (++n < 3 ? jsonResponse("boom", 503) : [klineRow(0)]));
-    const out = await fetchStrikeKlines({ fetch, symbol: "BTC-USD", interval: "1h", priceType: "mark", attempts: 3 });
+    const out = await fetchStrikeKlines({
+      fetch,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "mark",
+      attempts: 3,
+    });
     expect(out).toHaveLength(1);
     expect(fetch.calls).toHaveLength(3);
   });
@@ -130,30 +169,58 @@ describe("backfillStrikeKlines pagination", () => {
     const end = Number(u.searchParams.get("endTime"));
     const limit = Number(u.searchParams.get("limit"));
     const rows: unknown[][] = [];
-    for (let t = Math.max(start, T0); t <= end && t < T0 + TOTAL * HOUR && rows.length < limit; t += HOUR) rows.push(klineRow(t));
+    for (let t = Math.max(start, T0); t <= end && t < T0 + TOTAL * HOUR && rows.length < limit; t += HOUR)
+      rows.push(klineRow(t));
     return rows;
   });
 
   it("walks forward in 1500-candle pages and stops on a short page", async () => {
-    const out = await backfillStrikeKlines({ fetch: server, symbol: "BTC-USD", interval: "1h", priceType: "index", from: T0, to: T0 + 10_000 * HOUR });
+    const out = await backfillStrikeKlines({
+      fetch: server,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      from: T0,
+      to: T0 + 10_000 * HOUR,
+    });
     expect(out).toHaveLength(TOTAL);
     expect(server.calls).toHaveLength(3);
-    expect(server.calls.map((u) => Number(u.searchParams.get("startTime")))).toEqual([T0, T0 + 1500 * HOUR, T0 + 3000 * HOUR]);
-    expect(server.calls.every((u) => u.searchParams.get("limit") === String(STRIKE_KLINES_MAX_LIMIT))).toBe(true);
+    expect(server.calls.map((u) => Number(u.searchParams.get("startTime")))).toEqual([
+      T0,
+      T0 + 1500 * HOUR,
+      T0 + 3000 * HOUR,
+    ]);
+    expect(server.calls.every((u) => u.searchParams.get("limit") === String(STRIKE_KLINES_MAX_LIMIT))).toBe(
+      true,
+    );
     expect(out[0]!.openTime).toBe(T0);
     expect(out[out.length - 1]!.openTime).toBe(T0 + (TOTAL - 1) * HOUR);
   });
 
   it("respects `to` and returns nothing past it", async () => {
     server.calls.length = 0;
-    const out = await backfillStrikeKlines({ fetch: server, symbol: "BTC-USD", interval: "1h", priceType: "index", from: T0, to: T0 + 9 * HOUR });
+    const out = await backfillStrikeKlines({
+      fetch: server,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      from: T0,
+      to: T0 + 9 * HOUR,
+    });
     expect(out.map((c) => c.openTime)).toEqual(Array.from({ length: 10 }, (_, i) => T0 + i * HOUR));
     expect(server.calls).toHaveLength(1);
   });
 
   it("stops when the server makes no forward progress", async () => {
     const stuck = fakeFetch(() => Array.from({ length: 1500 }, () => klineRow(T0)));
-    const out = await backfillStrikeKlines({ fetch: stuck, symbol: "BTC-USD", interval: "1h", priceType: "index", from: T0 + HOUR, to: T0 + 5000 * HOUR });
+    const out = await backfillStrikeKlines({
+      fetch: stuck,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      from: T0 + HOUR,
+      to: T0 + 5000 * HOUR,
+    });
     expect(stuck.calls).toHaveLength(1);
     expect(out).toHaveLength(0); // T0 is before `from`
   });

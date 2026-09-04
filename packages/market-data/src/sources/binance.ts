@@ -81,7 +81,12 @@ export async function backfillBinance(p: BinanceBackfillParams): Promise<Candle[
   const maxPages = p.maxPages ?? 1000;
   while (cursor <= p.to && pages < maxPages) {
     if (p.pacer) await p.pacer.wait();
-    const page = await fetchBinanceKlines({ ...p, startTime: cursor, endTime: p.to, limit: BINANCE_KLINES_MAX_LIMIT });
+    const page = await fetchBinanceKlines({
+      ...p,
+      startTime: cursor,
+      endTime: p.to,
+      limit: BINANCE_KLINES_MAX_LIMIT,
+    });
     pages++;
     if (page.length === 0) break;
     out.push(...page);

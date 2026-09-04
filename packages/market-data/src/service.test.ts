@@ -24,19 +24,22 @@ function venueServer(world: World) {
       const end = Math.min(Number(u.searchParams.get("endTime") ?? Number.MAX_SAFE_INTEGER), currentOpen);
       const limit = Number(u.searchParams.get("limit") ?? 500);
       const rows: unknown[][] = [];
-      for (let t = Math.max(start, STRIKE_START); t <= end && rows.length < limit; t += HOUR) rows.push(klineRow(t));
+      for (let t = Math.max(start, STRIKE_START); t <= end && rows.length < limit; t += HOUR)
+        rows.push(klineRow(t));
       return rows;
     }
     if (u.pathname === "/products/BTC-USD/candles") {
       const end = Math.min(Date.parse(u.searchParams.get("end")!), currentOpen);
       const start = Date.parse(u.searchParams.get("start")!);
-      if ((end - start) / HOUR + 1 > 300) return jsonResponse({ message: "granularity too small for the requested time range" }, 400);
+      if ((end - start) / HOUR + 1 > 300)
+        return jsonResponse({ message: "granularity too small for the requested time range" }, 400);
       const rows: number[][] = [];
       for (let t = end; t >= start; t -= HOUR) rows.push(coinbaseRow(t, world.coinbaseScale));
       return rows;
     }
     if (u.pathname.endsWith("/history/funding")) return loadFixture("strike-funding-history.json");
-    if (u.pathname.endsWith("/history/open-interest")) return loadFixture("strike-open-interest-history.json");
+    if (u.pathname.endsWith("/history/open-interest"))
+      return loadFixture("strike-open-interest-history.json");
     if (u.pathname === "/price/v2/premiumIndex") return loadFixture("strike-premium-index.json");
     return jsonResponse({ message: "NotFound" }, 404);
   });
@@ -52,14 +55,26 @@ class MemoryRepo implements CandleRepository {
   async range(q: CandleRangeQuery): Promise<Candle[]> {
     return [...this.rows.values()]
       .filter((c) => c.venue === q.venue && c.symbol === q.symbol && c.interval === q.interval)
-      .filter((c) => (q.from === undefined || c.openTime >= q.from) && (q.to === undefined || c.openTime <= q.to))
+      .filter(
+        (c) => (q.from === undefined || c.openTime >= q.from) && (q.to === undefined || c.openTime <= q.to),
+      )
       .sort((a, b) => a.openTime - b.openTime);
   }
 }
 
 function collectLogger(): MarketLogger & { warns: unknown[] } {
   const warns: unknown[] = [];
-  return { warns, debug() {}, info() {}, warn(obj) { warns.push(obj); }, error(obj) { warns.push(obj); } };
+  return {
+    warns,
+    debug() {},
+    info() {},
+    warn(obj) {
+      warns.push(obj);
+    },
+    error(obj) {
+      warns.push(obj);
+    },
+  };
 }
 
 function make(world: World, extra: Partial<ConstructorParameters<typeof MarketDataService>[0]> = {}) {
@@ -101,7 +116,9 @@ describe("MarketDataService.backfill", () => {
     expect(svc.latestClosed("1h")!.venue).toBe("coinbase"); // default venue
     expect(svc.getSeries("strike", "1h").latest()!.openTime).toBe(Date.UTC(2026, 8, 4, 10)); // open candle held…
     expect(svc.getCandles("1h", 100, "strike").every((c) => c.closeTime <= NOW)).toBe(true); // …but never served
-    expect(svc.getCandles("1h", 5, "coinbase").map((c) => c.openTime)).toEqual([5, 6, 7, 8, 9].map((h) => Date.UTC(2026, 8, 4, h)));
+    expect(svc.getCandles("1h", 5, "coinbase").map((c) => c.openTime)).toEqual(
+      [5, 6, 7, 8, 9].map((h) => Date.UTC(2026, 8, 4, h)),
+    );
 
     // 4h aggregation aligned to UTC 00/04/08 — bucket 08–11 is incomplete so latest closed is 04:00
     const fourH = svc.getCandles("4h", 10, "coinbase");
@@ -181,7 +198,20 @@ describe("MarketDataService.backfill", () => {
 /** Build the Candle the fake Strike server would produce for openTime t. */
 function venueServerRows(t: number): Candle[] {
   const r = klineRow(t) as [number, string, string, string, string, string, number];
-  return [{ venue: "strike", symbol: "BTC-USD", interval: "1h", openTime: r[0], closeTime: r[6], open: +r[1], high: +r[2], low: +r[3], close: +r[4], volume: +r[5] }];
+  return [
+    {
+      venue: "strike",
+      symbol: "BTC-USD",
+      interval: "1h",
+      openTime: r[0],
+      closeTime: r[6],
+      open: +r[1],
+      high: +r[2],
+      low: +r[3],
+      close: +r[4],
+      volume: +r[5],
+    },
+  ];
 }
 
 describe("MarketDataService.refresh", () => {
@@ -219,7 +249,9 @@ describe("MarketDataService.refresh", () => {
     res = await svc.refresh();
     expect(svc.latestClosed("4h", "coinbase")!.openTime).toBe(Date.UTC(2026, 8, 4, 8));
     expect(svc.latestClosed("4h", "strike")!.openTime).toBe(Date.UTC(2026, 8, 4, 8));
-    expect(svc.getCandles("4h", 1, "strike")[0]!.close).toBe(svc.getSeries("strike", "1h").at(Date.UTC(2026, 8, 4, 11))!.close);
+    expect(svc.getCandles("4h", 1, "strike")[0]!.close).toBe(
+      svc.getSeries("strike", "1h").at(Date.UTC(2026, 8, 4, 11))!.close,
+    );
   });
 
   it("survives a source outage and reports it without throwing", async () => {

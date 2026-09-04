@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { evaluateRisk, type RiskInput } from "./engine.js";
 import { RiskLimits } from "../schemas/trading.js";
-import type { AccountSnapshot, MarketSnapshot, ReviewVerdict, TradePlan, TradingState } from "../schemas/trading.js";
+import type {
+  AccountSnapshot,
+  MarketSnapshot,
+  ReviewVerdict,
+  TradePlan,
+  TradingState,
+} from "../schemas/trading.js";
 import type { EwCandidate } from "../schemas/elliott.js";
 
 const NOW = 1_788_540_000_000;
@@ -67,7 +73,14 @@ function review(over: Partial<ReviewVerdict> = {}): ReviewVerdict {
 }
 
 function account(over: Partial<AccountSnapshot> = {}): AccountSnapshot {
-  return { asOf: NOW - 5_000, equity: 10_000, availableBalance: 10_000, openPositions: [], openOrders: 0, ...over };
+  return {
+    asOf: NOW - 5_000,
+    equity: 10_000,
+    availableBalance: 10_000,
+    openPositions: [],
+    openOrders: 0,
+    ...over,
+  };
 }
 
 function market(over: Partial<MarketSnapshot> = {}): MarketSnapshot {
@@ -118,7 +131,8 @@ function input(over: Partial<RiskInput> = {}): RiskInput {
   };
 }
 
-const failedRules = (d: ReturnType<typeof evaluateRisk>) => d.checks.filter((c) => !c.passed).map((c) => c.rule);
+const failedRules = (d: ReturnType<typeof evaluateRisk>) =>
+  d.checks.filter((c) => !c.passed).map((c) => c.rule);
 
 describe("evaluateRisk", () => {
   it("allows a clean long resting entry and sizes it to 1% risk", () => {
@@ -159,17 +173,27 @@ describe("evaluateRisk", () => {
 
   it("denies when paused, halted, or over LLM budget", () => {
     expect(failedRules(evaluateRisk(input({ state: state({ paused: true }) })))).toContain("not-paused");
-    expect(failedRules(evaluateRisk(input({ state: state({ halted: true, haltReason: "dd" }) })))).toContain("not-halted");
-    expect(failedRules(evaluateRisk(input({ state: state({ llmSpendTodayUsd: 50 }) })))).toContain("llm-budget");
+    expect(failedRules(evaluateRisk(input({ state: state({ halted: true, haltReason: "dd" }) })))).toContain(
+      "not-halted",
+    );
+    expect(failedRules(evaluateRisk(input({ state: state({ llmSpendTodayUsd: 50 }) })))).toContain(
+      "llm-budget",
+    );
   });
 
   it("denies on stale market data, stale candle, or reference deviation", () => {
-    expect(failedRules(evaluateRisk(input({ market: market({ asOf: NOW - 300_000 }) })))).toContain("market-fresh");
-    expect(failedRules(evaluateRisk(input({ market: market({ lastCandleCloseTime: NOW - 3 * 3_600_000 }) })))).toContain(
-      "candle-fresh",
+    expect(failedRules(evaluateRisk(input({ market: market({ asOf: NOW - 300_000 }) })))).toContain(
+      "market-fresh",
     );
-    expect(failedRules(evaluateRisk(input({ market: market({ referencePrice: 81_000 }) })))).toContain("reference-deviation");
-    expect(failedRules(evaluateRisk(input({ market: market({ referencePrice: null }) })))).toContain("reference-deviation");
+    expect(
+      failedRules(evaluateRisk(input({ market: market({ lastCandleCloseTime: NOW - 3 * 3_600_000 }) }))),
+    ).toContain("candle-fresh");
+    expect(failedRules(evaluateRisk(input({ market: market({ referencePrice: 81_000 }) })))).toContain(
+      "reference-deviation",
+    );
+    expect(failedRules(evaluateRisk(input({ market: market({ referencePrice: null }) })))).toContain(
+      "reference-deviation",
+    );
   });
 
   it("denies when a position is already open or entries are too frequent", () => {
@@ -182,27 +206,38 @@ describe("evaluateRisk", () => {
       liquidationPrice: 60_000,
       unrealizedPnl: 0,
     };
-    expect(failedRules(evaluateRisk(input({ account: account({ openPositions: [pos] }) })))).toContain("max-positions");
-    expect(failedRules(evaluateRisk(input({ state: state({ entriesToday: 4 }) })))).toContain("entries-today");
-    expect(failedRules(evaluateRisk(input({ state: state({ lastEntryAt: NOW - 3_600_000 }) })))).toContain("entry-spacing");
+    expect(failedRules(evaluateRisk(input({ account: account({ openPositions: [pos] }) })))).toContain(
+      "max-positions",
+    );
+    expect(failedRules(evaluateRisk(input({ state: state({ entriesToday: 4 }) })))).toContain(
+      "entries-today",
+    );
+    expect(failedRules(evaluateRisk(input({ state: state({ lastEntryAt: NOW - 3_600_000 }) })))).toContain(
+      "entry-spacing",
+    );
   });
 
   it("denies on daily loss and drawdown breaches", () => {
     expect(failedRules(evaluateRisk(input({ account: account({ equity: 9_600 }) })))).toContain("daily-loss");
-    expect(failedRules(evaluateRisk(input({ account: account({ equity: 8_900 }), state: state({ dayStartEquity: 8_900 }) })))).toContain(
-      "drawdown",
-    );
+    expect(
+      failedRules(
+        evaluateRisk(input({ account: account({ equity: 8_900 }), state: state({ dayStartEquity: 8_900 }) })),
+      ),
+    ).toContain("drawdown");
   });
 
   it("denies a resting long above the mark or too far from it", () => {
-    expect(failedRules(evaluateRisk(input({ plan: plan({ entry: { low: 79_600, high: 79_800, label: "x" } }) })))).toContain(
-      "resting-entry-side",
-    );
+    expect(
+      failedRules(evaluateRisk(input({ plan: plan({ entry: { low: 79_600, high: 79_800, label: "x" } }) }))),
+    ).toContain("resting-entry-side");
     expect(
       failedRules(
         evaluateRisk(
           input({
-            plan: plan({ entry: { low: 74_000, high: 74_500, label: "x" }, stopLoss: { price: 73_000, label: "x" } }),
+            plan: plan({
+              entry: { low: 74_000, high: 74_500, label: "x" },
+              stopLoss: { price: 73_000, label: "x" },
+            }),
             candidate: candidate({ invalidation: { price: 73_500, label: "x" } }),
           }),
         ),

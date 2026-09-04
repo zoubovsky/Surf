@@ -28,7 +28,14 @@ describe("zigzag", () => {
   });
 
   it("replaces the provisional pivot while the leg extends, without touching confirmed pivots", () => {
-    const up = candlesFromPath(100, [{ price: 120, bars: 40 }, { price: 110, bars: 20 }], { seed: 2 });
+    const up = candlesFromPath(
+      100,
+      [
+        { price: 120, bars: 40 },
+        { price: 110, bars: 20 },
+      ],
+      { seed: 2 },
+    );
     const a = zigzagDetailed(up.candles.slice(0, 20), { k: 3 });
     const b = zigzagDetailed(up.candles.slice(0, 35), { k: 3 });
     expect(a.confirmed.map((s) => s.index)).toEqual([0]);

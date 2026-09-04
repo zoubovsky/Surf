@@ -14,7 +14,12 @@ export class SqliteCandleRepository implements CandleRepository {
       .insert(schema.candles)
       .values(candles.map((c) => ({ ...c })))
       .onConflictDoUpdate({
-        target: [schema.candles.venue, schema.candles.symbol, schema.candles.interval, schema.candles.openTime],
+        target: [
+          schema.candles.venue,
+          schema.candles.symbol,
+          schema.candles.interval,
+          schema.candles.openTime,
+        ],
         set: {
           closeTime: sql`excluded.close_time`,
           open: sql`excluded.open`,
@@ -35,7 +40,12 @@ export class SqliteCandleRepository implements CandleRepository {
         tx.insert(schema.candles)
           .values(candles.slice(i, i + CHUNK).map((c) => ({ ...c })))
           .onConflictDoUpdate({
-            target: [schema.candles.venue, schema.candles.symbol, schema.candles.interval, schema.candles.openTime],
+            target: [
+              schema.candles.venue,
+              schema.candles.symbol,
+              schema.candles.interval,
+              schema.candles.openTime,
+            ],
             set: {
               closeTime: sql`excluded.close_time`,
               open: sql`excluded.open`,
@@ -69,7 +79,12 @@ export class SqliteCandleRepository implements CandleRepository {
         .all();
       return rows.reverse().map((r) => ({ ...r, interval: r.interval as Interval }));
     }
-    let query = this.db.select().from(schema.candles).where(and(...conds)).orderBy(asc(schema.candles.openTime)).$dynamic();
+    let query = this.db
+      .select()
+      .from(schema.candles)
+      .where(and(...conds))
+      .orderBy(asc(schema.candles.openTime))
+      .$dynamic();
     if (limit !== undefined) query = query.limit(limit);
     return query.all().map((r) => ({ ...r, interval: r.interval as Interval }));
   }
@@ -83,7 +98,13 @@ export class SqliteSeenStore implements SeenStore {
   ) {}
 
   has(videoId: string): boolean {
-    return this.db.select({ id: schema.videos.videoId }).from(schema.videos).where(eq(schema.videos.videoId, videoId)).get() !== undefined;
+    return (
+      this.db
+        .select({ id: schema.videos.videoId })
+        .from(schema.videos)
+        .where(eq(schema.videos.videoId, videoId))
+        .get() !== undefined
+    );
   }
 
   add(videoId: string, meta: SeenMeta): void {

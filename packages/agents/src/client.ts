@@ -109,7 +109,9 @@ export function wrapAnthropic(sdk: Anthropic): LlmClient {
       };
     },
     toolRunner(params: LlmToolRunnerParams): LlmToolRunner {
-      return new SdkToolRunner(sdk.beta.messages.toolRunner({ ...params, stream: false }) as BetaToolRunner<false>);
+      return new SdkToolRunner(
+        sdk.beta.messages.toolRunner({ ...params, stream: false }) as BetaToolRunner<false>,
+      );
     },
     async countTokens(params: MessageCountTokensParams): Promise<number> {
       const res = await sdk.messages.countTokens(params);

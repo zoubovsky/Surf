@@ -50,10 +50,29 @@ const xmlParser = new XMLParser({
   stopNodes: ["transcript.text", "timedtext.body.p"],
 });
 
-const XmlCue = z.object({ "@_start": z.string().optional(), "@_t": z.string().optional(), "@_dur": z.string().optional(), "@_d": z.string().optional(), "#text": z.string().optional() }).passthrough();
+const XmlCue = z
+  .object({
+    "@_start": z.string().optional(),
+    "@_t": z.string().optional(),
+    "@_dur": z.string().optional(),
+    "@_d": z.string().optional(),
+    "#text": z.string().optional(),
+  })
+  .passthrough();
 const XmlDoc = z.object({
-  transcript: z.object({ text: z.array(XmlCue).optional() }).passthrough().optional(),
-  timedtext: z.object({ body: z.object({ p: z.array(XmlCue).optional() }).passthrough().optional() }).passthrough().optional(),
+  transcript: z
+    .object({ text: z.array(XmlCue).optional() })
+    .passthrough()
+    .optional(),
+  timedtext: z
+    .object({
+      body: z
+        .object({ p: z.array(XmlCue).optional() })
+        .passthrough()
+        .optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 function stripTags(s: string): string {
@@ -76,7 +95,9 @@ export function parseTimedTextXml(body: string): TranscriptSegment[] {
     return srv3.flatMap((c) => {
       const startMs = Number(c["@_t"]);
       const text = stripTags(c["#text"] ?? "").trim();
-      return Number.isFinite(startMs) && text ? [{ start: startMs / 1000, duration: (Number(c["@_d"] ?? 0) || 0) / 1000, text }] : [];
+      return Number.isFinite(startMs) && text
+        ? [{ start: startMs / 1000, duration: (Number(c["@_d"] ?? 0) || 0) / 1000, text }]
+        : [];
     });
   }
   return [];

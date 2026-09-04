@@ -1,10 +1,10 @@
 # Loop Engineering and Harness Design for an Autonomous 1-Hour BTC Trading Agent
 
-*Researched 2026-09-04. Based on the full PDF text of the linked paper, not secondary summaries.*
+_Researched 2026-09-04. Based on the full PDF text of the linked paper, not secondary summaries._
 
 ## Source access and provenance note
 
-`https://asixiv.org/pdf/curated/2606.00001` (11 pages, ~9,700 words) was retrieved with a browser user-agent. **The PDF carries no author byline.** A footnote states it is "an independent reformatting of the author's open 'Orange Book' guide *Loop Engineering: Stop Asking Me What It Is* (v260615) into a conference-style document" (huasheng.ai/orange-books). The asixiv listing says "Submitted by ao12", subject `asi.RSI`, June 25, 2026. A mirror lists Steinberger, Cherny and Osmani as "authors"; the PDF presents them as the *sources* of the idea, not the authors. Treat it as a practitioner synthesis, not peer-reviewed research.
+`https://asixiv.org/pdf/curated/2606.00001` (11 pages, ~9,700 words) was retrieved with a browser user-agent. **The PDF carries no author byline.** A footnote states it is "an independent reformatting of the author's open 'Orange Book' guide _Loop Engineering: Stop Asking Me What It Is_ (v260615) into a conference-style document" (huasheng.ai/orange-books). The asixiv listing says "Submitted by ao12", subject `asi.RSI`, June 25, 2026. A mirror lists Steinberger, Cherny and Osmani as "authors"; the PDF presents them as the _sources_ of the idea, not the authors. Treat it as a practitioner synthesis, not peer-reviewed research.
 
 ---
 
@@ -16,17 +16,17 @@ The most important intuition: "the cost of a mistake scales with the number of t
 
 **Taxonomy: five moves of one turn, six parts.**
 
-| Move | What it does | Realized by |
-|---|---|---|
-| Discovery | Find this turn's work on its own | Skills (SKILL.md) |
-| Handoff | Hand the task off into isolation | Worktrees / sandboxes |
-| Verification | "Swap in another agent to say no" | Sub-agents (generator/evaluator) |
-| Persistence | Write state outside the conversation | Memory (disk state file, DB) |
-| Scheduling | Make it turn round after round | Automations (cron, routines) |
+| Move         | What it does                         | Realized by                      |
+| ------------ | ------------------------------------ | -------------------------------- |
+| Discovery    | Find this turn's work on its own     | Skills (SKILL.md)                |
+| Handoff      | Hand the task off into isolation     | Worktrees / sandboxes            |
+| Verification | "Swap in another agent to say no"    | Sub-agents (generator/evaluator) |
+| Persistence  | Write state outside the conversation | Memory (disk state file, DB)     |
+| Scheduling   | Make it turn round after round       | Automations (cron, routines)     |
 
 Connectors (MCP) are the sixth part. "Memory is not context: context is what the agent sees this round and is flushed on refresh; memory persists across rounds and days."
 
-**Independent reviewer/evaluator.** "Ask an agent to grade what it just produced and it tends to praise it confidently" because its context "is already stuffed with the reasons it was written that way." The fix is structural: "tuning a standalone evaluator to be skeptical is far more tractable than making a generator critical of its own work." Three requirements: (1) a separate agent with different instructions, ideally a different model; (2) the evaluator should *act*, not just read (execute, run checks, judge behavior); (3) default stance of doubt: "assume the code is BROKEN until proven otherwise. DO NOT praise. Find what fails."
+**Independent reviewer/evaluator.** "Ask an agent to grade what it just produced and it tends to praise it confidently" because its context "is already stuffed with the reasons it was written that way." The fix is structural: "tuning a standalone evaluator to be skeptical is far more tractable than making a generator critical of its own work." Three requirements: (1) a separate agent with different instructions, ideally a different model; (2) the evaluator should _act_, not just read (execute, run checks, judge behavior); (3) default stance of doubt: "assume the code is BROKEN until proven otherwise. DO NOT praise. Find what fails."
 
 **"Continuous feedback loop."** The paper's term is "feeds itself": "what the loop produces becomes its own input next round; yesterday's findings are written to a file, and this morning it reads that file and carries on." The loop is closed by scheduling plus a persisted state file, with verification as the gate that decides what gets written back.
 
@@ -36,7 +36,7 @@ Connectors (MCP) are the sixth part. "Memory is not context: context is what the
 
 **Evaluation results.** None quantitative; a field study of three cases (Osmani's triage loop; Stripe's "Minions" pipeline — secondhand; a cloud-vs-local scheduler comparison).
 
-**Complementary formalization.** Macedo, "Stop Hand-Holding Your Coding Agent" (<https://arxiv.org/abs/2607.00038>) defines a *loop specification* = trigger + goal + verification + stopping rule + memory, and a five-level verification ladder: L1 deterministic (assertion, exit code), L2 rule/schema/policy, L3 delayed field truth ("true but slow"), L4 model-as-judge, L5 human checkpoint. Only L1–L2 is the "autonomous zone"; "do not pretend that level 4 is level 1." Terminal states must be named (success, no-op, blocked, stalled, exhausted); "an error or an exhausted budget never counts as success." Memory warning: "experience accumulated without governance can drive performance below the zero-shot baseline," so lessons must be curated, not appended.
+**Complementary formalization.** Macedo, "Stop Hand-Holding Your Coding Agent" (<https://arxiv.org/abs/2607.00038>) defines a _loop specification_ = trigger + goal + verification + stopping rule + memory, and a five-level verification ladder: L1 deterministic (assertion, exit code), L2 rule/schema/policy, L3 delayed field truth ("true but slow"), L4 model-as-judge, L5 human checkpoint. Only L1–L2 is the "autonomous zone"; "do not pretend that level 4 is level 1." Terminal states must be named (success, no-op, blocked, stalled, exhausted); "an error or an exhausted budget never counts as success." Memory warning: "experience accumulated without governance can drive performance below the zero-shot baseline," so lessons must be curated, not appended.
 
 ---
 
@@ -49,7 +49,7 @@ Connectors (MCP) are the sixth part. "Memory is not context: context is what the
 - **Claude Agent SDK**: subagents with per-agent `model`, tool restrictions ("a reviewer that should never edit files gets `[Read, Grep, Glob]`"), `maxTurns`, `maxBudgetUsd`; hooks (`PreToolUse`, `Stop`, …) run deterministic code "before everything else in the permission chain" and can block operations. `/goal` = a fresh small model judges the stop condition after every turn.
 - **Anthropic, "Getting started with loops"** (<https://claude.com/blog/getting-started-with-loops>): "Loops that write code need loops that check it"; "a reviewer with fresh context is less biased"; "match intervals to actual change frequency"; "run deterministic scripts rather than reasoning through repetitive steps."
 - **OpenAI, "A practical guide to building agents"**: layer LLM-based and rules-based guardrails; rate each tool by "read-only vs. write access, reversibility, required permissions, and financial impact"; human intervention on high-stakes irreversible actions.
-- **Trading-specific: "Agentic Trading: When LLM Agents Meet Financial Markets"** (<https://arxiv.org/html/2605.19337v1>): a deterministic state store "read-only to the LLM and updated solely by the environment"; an *outcome embargo* on episodic memory to prevent look-ahead leakage; chain-of-thought "is not guaranteed to be faithful"; only 1 of 19 closed-loop studies modeled transaction costs.
+- **Trading-specific: "Agentic Trading: When LLM Agents Meet Financial Markets"** (<https://arxiv.org/html/2605.19337v1>): a deterministic state store "read-only to the LLM and updated solely by the environment"; an _outcome embargo_ on episodic memory to prevent look-ahead leakage; chain-of-thought "is not guaranteed to be faithful"; only 1 of 19 closed-loop studies modeled transaction costs.
 
 ---
 
@@ -57,13 +57,13 @@ Connectors (MCP) are the sixth part. "Memory is not context: context is what the
 
 ### Loop cadences
 
-| Loop | Trigger | Actor | Verifier level | Writes |
-|---|---|---|---|---|
-| **A. Signal ingestion** | Event: new YouTube video | LLM skill | L2 schema; reviewer L4 for claims | `signals` (thesis, direction, horizon, invalidation, confidence, source timestamp). Never orders. |
-| **B. Decision** | Hourly candle close (+ finality delay) | Planner LLM → Reviewer LLM → deterministic risk engine → executor code | L4 hardened by separate model, then L1 gates | `decision_log`, orders, journal |
-| **C. Position monitoring** | Every 1–5 min or exchange websocket | Code only | L1 | Stop/TP/kill-switch actions, alerts |
-| **D. Post-trade review** | Event: position closed | Reviewer LLM (never the planner) | L3 field truth (realized P&L) + L4 | `trade_reviews`, calibration ledger |
-| **E. Calibration & parameter update** | Weekly, or after N closed trades | Analyst proposes; backtest code judges; human door | L1 (walk-forward) then L5 | `strategy_params` (versioned) |
+| Loop                                  | Trigger                                | Actor                                                                  | Verifier level                               | Writes                                                                                            |
+| ------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **A. Signal ingestion**               | Event: new YouTube video               | LLM skill                                                              | L2 schema; reviewer L4 for claims            | `signals` (thesis, direction, horizon, invalidation, confidence, source timestamp). Never orders. |
+| **B. Decision**                       | Hourly candle close (+ finality delay) | Planner LLM → Reviewer LLM → deterministic risk engine → executor code | L4 hardened by separate model, then L1 gates | `decision_log`, orders, journal                                                                   |
+| **C. Position monitoring**            | Every 1–5 min or exchange websocket    | Code only                                                              | L1                                           | Stop/TP/kill-switch actions, alerts                                                               |
+| **D. Post-trade review**              | Event: position closed                 | Reviewer LLM (never the planner)                                       | L3 field truth (realized P&L) + L4           | `trade_reviews`, calibration ledger                                                               |
+| **E. Calibration & parameter update** | Weekly, or after N closed trades       | Analyst proposes; backtest code judges; human door                     | L1 (walk-forward) then L5                    | `strategy_params` (versioned)                                                                     |
 
 Loop A must not be allowed to trade. Its output is a persisted signal with a source timestamp, so Loop B can enforce that only information available before the candle close is used. Each hourly session starts fresh and reads state from disk.
 

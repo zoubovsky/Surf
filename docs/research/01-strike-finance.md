@@ -1,6 +1,6 @@
 # Strike Finance — Research Report for a BTC Perpetuals Trading Bot
 
-*Researched 2026-09-04. Method: `docs.strikefinance.org` returns 403 to generic fetchers, so pages were pulled via GitBook's `.md` endpoints (append `.md` to any page URL; index at <https://docs.strikefinance.org/llms.txt>), the six OpenAPI YAML specs the docs are generated from were downloaded (vendored in `strike-openapi/`), the official `strike-finance-skills` repo was read, and only public, unauthenticated endpoints were probed live on mainnet and testnet. Items marked **live** were observed on 2026-09-04.*
+_Researched 2026-09-04. Method: `docs.strikefinance.org` returns 403 to generic fetchers, so pages were pulled via GitBook's `.md` endpoints (append `.md` to any page URL; index at <https://docs.strikefinance.org/llms.txt>), the six OpenAPI YAML specs the docs are generated from were downloaded (vendored in `strike-openapi/`), the official `strike-finance-skills` repo was read, and only public, unauthenticated endpoints were probed live on mainnet and testnet. Items marked **live** were observed on 2026-09-04._
 
 ## 1. What Strike Finance is
 
@@ -10,16 +10,16 @@
 
 ### BTC market (live: `GET https://api.strikefinance.org/price/v2/exchangeInfo` and `GET https://api.strikefinance.org/v2/markets/BTC-USD`)
 
-| Item | Value |
-|---|---|
-| Symbol | `BTC-USD` (contractType `PERPETUAL`, base `BTC`, quote/margin `USDT`) |
-| Tick size / step size | 0.10 USD / 0.00001 BTC; min notional $10 |
-| Max order size | 1000 BTC (limit), 120 BTC (market) |
-| Price bounds | limit & market orders rejected/bounded beyond 5% of mark (`limitTakeBound`/`marketTakeBound` 0.05); `triggerProtect` 0.05 |
-| Default leverage | 10x |
+| Item                                              | Value                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Symbol                                            | `BTC-USD` (contractType `PERPETUAL`, base `BTC`, quote/margin `USDT`)                                                                                                                                                                               |
+| Tick size / step size                             | 0.10 USD / 0.00001 BTC; min notional $10                                                                                                                                                                                                            |
+| Max order size                                    | 1000 BTC (limit), 120 BTC (market)                                                                                                                                                                                                                  |
+| Price bounds                                      | limit & market orders rejected/bounded beyond 5% of mark (`limitTakeBound`/`marketTakeBound` 0.05); `triggerProtect` 0.05                                                                                                                           |
+| Default leverage                                  | 10x                                                                                                                                                                                                                                                 |
 | Margin tiers (max leverage / MMR / maint. amount) | ≤$10k: 100x / 0.4% / 0 · ≤$50k: 75x / 0.4% · ≤$100k: 50x / 0.4% · ≤$250k: 40x / 0.4% · ≤$300k: 25x / 0.4% · ≤$800k: 25x / 0.5% / $300 · ≤$1M: 25x / 0.65% / $1,500 · ≤$2.5M: 20x · ≤$3M: 10x · ≤$10M: 10x / 1% / $12k · … ≤$100M: 1x / 2.5% / $482k |
-| Liquidation fee | `liquidation_fee_rate` 1.25%, `liquidation_fee_retention_factor` 0.8 |
-| Liquidity (live) | 24h volume ≈ 25.8 BTC (~$2.07M); open interest ≈ 4.5 BTC; top-of-book ~$1.30 spread. **Thin.** Relevant for slippage and kline quality. |
+| Liquidation fee                                   | `liquidation_fee_rate` 1.25%, `liquidation_fee_retention_factor` 0.8                                                                                                                                                                                |
+| Liquidity (live)                                  | 24h volume ≈ 25.8 BTC (~$2.07M); open interest ≈ 4.5 BTC; top-of-book ~$1.30 spread. **Thin.** Relevant for slippage and kline quality.                                                                                                             |
 
 Note: `/v2/markets/{symbol}` is **not in the published OpenAPI specs** but is live and returns the tier table plus mark/index/last/bid/ask/funding fields; the builder reference app uses it. Treat as semi-official.
 
@@ -34,13 +34,13 @@ Note: `/v2/markets/{symbol}` is **not in the published OpenAPI specs** but is li
 
 ### Base URLs and auth
 
-| Service | Mainnet | Testnet |
-|---|---|---|
-| Trade / User / Common REST | `https://api.strikefinance.org` | `https://api-v2-testnet.strikefinance.org` |
-| Market data REST | `https://api.strikefinance.org/price` | `…testnet…/price` |
-| Stats REST | `https://api.strikefinance.org/stat` | `…testnet…/stat` |
-| Public WS | `wss://api.strikefinance.org/ws/price` | `wss://api-v2-testnet.strikefinance.org/ws/price` |
-| User WS | `wss://api.strikefinance.org/ws/user-api` (docs also cite `wss://api-v2.strikefinance.org/ws/user-api`) | `wss://api-v2-testnet.strikefinance.org/ws/user-api` |
+| Service                    | Mainnet                                                                                                 | Testnet                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Trade / User / Common REST | `https://api.strikefinance.org`                                                                         | `https://api-v2-testnet.strikefinance.org`           |
+| Market data REST           | `https://api.strikefinance.org/price`                                                                   | `…testnet…/price`                                    |
+| Stats REST                 | `https://api.strikefinance.org/stat`                                                                    | `…testnet…/stat`                                     |
+| Public WS                  | `wss://api.strikefinance.org/ws/price`                                                                  | `wss://api-v2-testnet.strikefinance.org/ws/price`    |
+| User WS                    | `wss://api.strikefinance.org/ws/user-api` (docs also cite `wss://api-v2.strikefinance.org/ws/user-api`) | `wss://api-v2-testnet.strikefinance.org/ws/user-api` |
 
 Sources: [api/getting-started](https://docs.strikefinance.org/api/getting-started.md), OpenAPI `servers` blocks, [strike-finance-skills](https://github.com/strike-finance/strike-finance-skills).
 
@@ -59,6 +59,7 @@ Wallet signing (CIP-30 etc.) is only involved in **funding the account**: deposi
 ### Endpoints relevant to the bot
 
 **Market data (public, base `/price`)** — [market/rest-api](https://docs.strikefinance.org/api/market/rest-api.md)
+
 - `GET /v2/exchangeInfo` — symbols, filters, and `rateLimits`.
 - `GET /v2/premiumIndex?symbol=BTC-USD` → live: `{markPrice, indexPrice, latestPremiumIndex, averagePremiumIndex, fundingRate, nextFundingTime, interestRate, interestRateDampener, time}`.
 - `GET /v2/markPrice`, `GET /v2/indexPrice`, `GET /v2/ticker/price`, `GET /v2/ticker/24hr`, `GET /v2/ticker/bookTicker`, `GET /v2/depth?symbol&limit≤1000`, `GET /v2/trades?symbol&limit≤1000`, `GET /v2/openInterest`.
@@ -66,12 +67,14 @@ Wallet signing (CIP-30 etc.) is only involved in **funding the account**: deposi
 - `GET /v2/l3/snapshot?symbol=BTC-USD` (base `api.strikefinance.org`) — full market-by-order book; BTC is the only L3 symbol.
 
 **Account / positions (auth, base `api.strikefinance.org`)** — [user/rest-api](https://docs.strikefinance.org/api/user/rest-api.md)
+
 - `GET /v2/account` → `wallet_balance, available_balance, unrealized_pnl, margin_balance, total_margin, position_initial_margin, maintenance_margin, symbol_settings (per-symbol leverage & margin mode), sub_accounts`.
 - `GET /v2/balances` → array `{asset:"USDT", walletBalance, availableBalance, marginBalance, maintMargin, initialMargin, openOrderInitialMargin, maxWithdrawAmount, …}`.
 - `GET /v2/positions?symbol=` → `{positions:[{id, symbol, margin_mode, leverage, size (signed), entry_price, iso_balance, upnl, maintenance_margin, bankruptcy_price, liquidation_price, accumulated_funding_fees, …}], count}`.
 - `GET /v2/closedPositions`, `GET /v2/history/order` (status ints 1 pending…7 expired; cursor `fromOrderID`), `GET /v2/history/fill` (`realized_pnl, fee, role, entry_price, close_price, roi_pct, leverage`; cursor `since_trade_id`), `GET /v2/history/funding`, `GET /v2/history/transaction`. All `limit` clamped to 1000.
 
 **Trading (auth)** — [trade/orders](https://docs.strikefinance.org/api/trade/orders.md), [trade/trading](https://docs.strikefinance.org/api/trade/trading.md)
+
 - `POST /v2/order` — body `CreateOrderRequest`: `symbol*, side* (buy|sell), type* (limit|market|stop|stop_limit|take_profit|take_profit_limit|trailing_stop_market), size* (string, base units), price, stop_price, time_in_force (GTC|IOC|FOK), working_type (mark_price|contract_price), post_only, reduce_only, close_position, price_protect, slippage ("0.05"), callback_rate ("0.1"–"5"), activation_price, client_order_id, sub_account_id`. **Response 201 is an acknowledgement, not a fill:** `{client_order_id, account_id, symbol, sequence_id, message_id}` — no server `order_id`. Retrieve via `GET /v2/order?symbol=&client_order_id=` or the user WebSocket.
 - `POST /v2/order/strategy` — bracket/OTOCO (see §3).
 - `POST /v2/orders/batch`, `POST /v2/order/replace` (atomic cancel+create `{cancel:{order_id,symbol}, new_order:{…}}`), `POST /v2/order/replace-batch`, `POST /v2/orders/replace`.
@@ -82,6 +85,7 @@ Wallet signing (CIP-30 etc.) is only involved in **funding the account**: deposi
 - Algo: `POST/GET/DELETE /v2/algo/twap[/{id}]`, `POST/GET/DELETE /v2/grid/bot[/{id}]`.
 
 **WebSockets**
+
 - Public ([market/websocket](https://docs.strikefinance.org/api/market/websocket.md)): `{"method":"subscribe","channel":"markprice"|"kline_1h"|"depth"|"trade"|"miniticker"|"!markprice@arr","symbol":"BTC-USD","id":1}`; events mirror Binance futures (`markPriceUpdate` with `p` mark, `i` index, `r` funding, `T` next funding; `kline` with `k.x` closed flag). Server pings every 54s, drops after 60s without pong.
 - User ([user/websocket](https://docs.strikefinance.org/api/user/websocket.md)): connect to `/ws/user-api`, send `{"method":"session.logon","params":{"apiKey":<pubkey hex>,"signature":hex(Ed25519("session.logon:${timestamp_ms}:${apiKey}")),"timestamp":ms}}`, then `{"method":"subscribe","channel":"userstream","account_id":"…"}`. Events: `ORDER_TRADE_UPDATE` (order lifecycle/fills: `i` order id, `c` client id, `X` status, `x` exec type, `ap`, `l`, `z`, `L`, `n` commission), `ACCOUNT_UPDATE` (balances `B`, positions `P`; reasons ORDER/FUNDING/LIQUIDATION/ADL), `strategyUpdate`. **Frames can contain multiple newline-delimited JSON events** — split on `\n`.
 

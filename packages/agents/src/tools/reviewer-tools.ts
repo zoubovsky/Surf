@@ -1,4 +1,11 @@
-import type { AnalystPrior, EwAnalysis, EwCandidate, MarketSnapshot, RiskLimits, TradePlan } from "@surf/core";
+import type {
+  AnalystPrior,
+  EwAnalysis,
+  EwCandidate,
+  MarketSnapshot,
+  RiskLimits,
+  TradePlan,
+} from "@surf/core";
 import { priorFreshness } from "../prompts/analyze.js";
 
 /** Deterministic helpers the reviewer may call. All pure; the caller may substitute its own. */
@@ -67,11 +74,21 @@ export function createReviewerTools(inputs: ReviewerToolInputs): ReviewerTools {
     getCandidate: (id) => findCandidate(ew, id),
 
     checkStopVsInvalidation(plan) {
-      const empty: StopCheck = { ok: false, detail: "", stop: null, invalidation: null, bufferPct: null, stopDistancePct: null };
-      if (plan.action !== "enter") return { ...empty, detail: `action=${plan.action}: no entry stop to check` };
-      if (!plan.direction || !plan.stopLoss || !plan.candidateId) return { ...empty, detail: "plan lacks direction, stop or candidateId" };
+      const empty: StopCheck = {
+        ok: false,
+        detail: "",
+        stop: null,
+        invalidation: null,
+        bufferPct: null,
+        stopDistancePct: null,
+      };
+      if (plan.action !== "enter")
+        return { ...empty, detail: `action=${plan.action}: no entry stop to check` };
+      if (!plan.direction || !plan.stopLoss || !plan.candidateId)
+        return { ...empty, detail: "plan lacks direction, stop or candidateId" };
       const cand = findCandidate(ew, plan.candidateId);
-      if (!cand) return { ...empty, stop: plan.stopLoss.price, detail: `candidate ${plan.candidateId} not found` };
+      if (!cand)
+        return { ...empty, stop: plan.stopLoss.price, detail: `candidate ${plan.candidateId} not found` };
       const stop = plan.stopLoss.price;
       const inv = cand.invalidation.price;
       const beyond = plan.direction === "long" ? stop <= inv : stop >= inv;
@@ -80,7 +97,9 @@ export function createReviewerTools(inputs: ReviewerToolInputs): ReviewerTools {
       const stopDistancePct = entry === null ? null : (Math.abs(entry - stop) / entry) * 100;
       const losingSide = entry === null ? false : plan.direction === "long" ? stop < entry : stop > entry;
       const inBand =
-        stopDistancePct !== null && stopDistancePct >= limits.minStopDistancePct && stopDistancePct <= limits.maxStopDistancePct;
+        stopDistancePct !== null &&
+        stopDistancePct >= limits.minStopDistancePct &&
+        stopDistancePct <= limits.maxStopDistancePct;
       const directionOk = cand.direction === plan.direction;
       const ok = beyond && losingSide && inBand && directionOk;
       const detail = [
@@ -89,7 +108,9 @@ export function createReviewerTools(inputs: ReviewerToolInputs): ReviewerTools {
         stopDistancePct === null
           ? "no entry price"
           : `stop distance ${stopDistancePct.toFixed(2)}% (band ${limits.minStopDistancePct}-${limits.maxStopDistancePct}%) ${inBand ? "ok" : "OUT OF BAND"}`,
-        directionOk ? "candidate direction matches" : `candidate direction ${cand.direction} != plan ${plan.direction}`,
+        directionOk
+          ? "candidate direction matches"
+          : `candidate direction ${cand.direction} != plan ${plan.direction}`,
       ].join("; ");
       return { ok, detail, stop, invalidation: inv, bufferPct, stopDistancePct };
     },
@@ -106,11 +127,18 @@ export function createReviewerTools(inputs: ReviewerToolInputs): ReviewerTools {
       };
       if (plan.action !== "enter") return { ...empty, detail: `action=${plan.action}: nothing to recompute` };
       const entry = worstEntryPrice(plan, market);
-      if (entry === null || !plan.direction || !plan.stopLoss || !plan.takeProfit) return { ...empty, detail: "plan lacks entry, direction, stop or target" };
+      if (entry === null || !plan.direction || !plan.stopLoss || !plan.takeProfit)
+        return { ...empty, detail: "plan lacks entry, direction, stop or target" };
       const stop = plan.stopLoss.price;
       const target = plan.takeProfit.price;
       const risk = plan.direction === "long" ? entry - stop : stop - entry;
-      if (risk <= 0) return { ...empty, entryPrice: entry, riskPerUnit: risk, detail: "stop is not on the losing side of entry" };
+      if (risk <= 0)
+        return {
+          ...empty,
+          entryPrice: entry,
+          riskPerUnit: risk,
+          detail: "stop is not on the losing side of entry",
+        };
       const gross = plan.direction === "long" ? target - entry : entry - target;
       const holdHours = plan.expectedHoldHours ?? 24;
       const feePerUnit = entry * (TAKER_FEE + (plan.entryKind === "market" ? TAKER_FEE : 0));

@@ -14,7 +14,8 @@ import {
 } from "./innertube.js";
 import { parseJson3, parseTimedText, parseTimedTextXml } from "./timedtext.js";
 
-const fx = (name: string) => readFileSync(new URL(`../__fixtures__/innertube/${name}`, import.meta.url), "utf8");
+const fx = (name: string) =>
+  readFileSync(new URL(`../__fixtures__/innertube/${name}`, import.meta.url), "utf8");
 const WATCH = fx("watch-page.html");
 const JSON3 = fx("captions.json3");
 const BLOCKED = fx("blocked-recaptcha.html");
@@ -40,7 +41,12 @@ describe("player response extraction", () => {
     expect(player?.playabilityStatus?.status).toBe("OK");
     const tracks = captionTracksOf(player);
     expect(tracks).toHaveLength(2);
-    expect(tracks[0]).toMatchObject({ languageCode: "en", kind: "asr", vssId: "a.en", name: "English (auto-generated)" });
+    expect(tracks[0]).toMatchObject({
+      languageCode: "en",
+      kind: "asr",
+      vssId: "a.en",
+      name: "English (auto-generated)",
+    });
     expect(tracks[0]!.baseUrl).toContain("https://www.youtube.com/api/timedtext?v=3wXfppSKkpg&");
     expect(tracks[1]).toMatchObject({ languageCode: "de", vssId: ".de", name: "German" });
   });
@@ -55,7 +61,11 @@ describe("player response extraction", () => {
   it("returns null/empty for pages without a player response", () => {
     expect(extractPlayerResponse("<html></html>")).toBeNull();
     expect(captionTracksOf(null)).toEqual([]);
-    expect(captionTracksOf(extractPlayerResponse('var ytInitialPlayerResponse = {"playabilityStatus":{"status":"ERROR"}};'))).toEqual([]);
+    expect(
+      captionTracksOf(
+        extractPlayerResponse('var ytInitialPlayerResponse = {"playabilityStatus":{"status":"ERROR"}};'),
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -69,7 +79,12 @@ describe("selectCaptionTrack", () => {
   it("prefers manual exact match, then ASR, then regional variants", () => {
     expect(selectCaptionTrack(tracks, "en")?.baseUrl).toBe("u2");
     expect(selectCaptionTrack(tracks, "en", false)?.baseUrl).toBe("u1");
-    expect(selectCaptionTrack(tracks.filter((t) => t.languageCode !== "en"), "en")?.baseUrl).toBe("u3");
+    expect(
+      selectCaptionTrack(
+        tracks.filter((t) => t.languageCode !== "en"),
+        "en",
+      )?.baseUrl,
+    ).toBe("u3");
     expect(selectCaptionTrack(tracks, "de")?.baseUrl).toBe("u4");
     expect(selectCaptionTrack(tracks, "fr")).toBeNull();
     expect(selectCaptionTrack([], "en")).toBeNull();
@@ -80,7 +95,11 @@ describe("timedtext parsing", () => {
   it("parses json3, skipping window events and newline appends", () => {
     const segs = parseJson3(JSON3);
     expect(segs).toHaveLength(5);
-    expect(segs[0]).toEqual({ start: 0.48, duration: 4.56, text: "hello and welcome to today's bitcoin update" });
+    expect(segs[0]).toEqual({
+      start: 0.48,
+      duration: 4.56,
+      text: "hello and welcome to today's bitcoin update",
+    });
     expect(segs[1]!.text).toBe("the key level to watch today is 79k");
     expect(segs[4]!.text).toBe("the invalidation is at $74,800 &amp; that&#39;s it");
   });
@@ -120,7 +139,13 @@ describe("InnertubeProvider", () => {
     });
     const p = new InnertubeProvider({ fetch, clock: { now: () => 42 } });
     const t = await p.fetch("3wXfppSKkpg");
-    expect(t).toMatchObject({ videoId: "3wXfppSKkpg", language: "en", source: "innertube", isGenerated: true, fetchedAt: 42 });
+    expect(t).toMatchObject({
+      videoId: "3wXfppSKkpg",
+      language: "en",
+      source: "innertube",
+      isGenerated: true,
+      fetchedAt: 42,
+    });
     expect(t!.segments).toHaveLength(5);
     expect(t!.text).toContain("the invalidation is at $74,800 & that's it");
     expect(calls[0]!.url).toContain("/watch?v=3wXfppSKkpg");
@@ -129,7 +154,9 @@ describe("InnertubeProvider", () => {
   });
 
   it("throws TranscriptBlockedError on the reCAPTCHA page (as seen live from this sandbox)", async () => {
-    const { fetch } = router({ "https://www.youtube.com/watch": () => new Response(BLOCKED, { status: 429 }) });
+    const { fetch } = router({
+      "https://www.youtube.com/watch": () => new Response(BLOCKED, { status: 429 }),
+    });
     const e = await new InnertubeProvider({ fetch }).fetch("3wXfppSKkpg").catch((e: unknown) => e);
     expect(e).toBeInstanceOf(TranscriptBlockedError);
     expect((e as TranscriptBlockedError).reason).toBe("http-429");
@@ -147,7 +174,10 @@ describe("InnertubeProvider", () => {
     expect(e).toBeInstanceOf(TranscriptBlockedError);
     expect((e as TranscriptBlockedError).reason).toBe("bot-check");
     expect(calls[1]!.url).toContain("/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8");
-    const body = JSON.parse(calls[1]!.init.body as string) as { context: { client: { clientName: string } }; videoId: string };
+    const body = JSON.parse(calls[1]!.init.body as string) as {
+      context: { client: { clientName: string } };
+      videoId: string;
+    };
     expect(body.context.client.clientName).toBe("ANDROID");
     expect(body.videoId).toBe("3wXfppSKkpg");
   });
@@ -157,7 +187,8 @@ describe("InnertubeProvider", () => {
     const player = extractPlayerResponse(WATCH)!;
     const { fetch } = router({
       "https://www.youtube.com/watch": () => new Response(noCaptions, { status: 200 }),
-      "https://www.youtube.com/youtubei/v1/player": () => new Response(JSON.stringify(player), { status: 200 }),
+      "https://www.youtube.com/youtubei/v1/player": () =>
+        new Response(JSON.stringify(player), { status: 200 }),
       "https://www.youtube.com/api/timedtext": () => new Response(JSON3, { status: 200 }),
     });
     const t = await new InnertubeProvider({ fetch }).fetch("3wXfppSKkpg");
@@ -168,11 +199,14 @@ describe("InnertubeProvider", () => {
     const noCaptions = WATCH.replace(/"captions":\{.*?"defaultAudioTrackIndex":0\}\},/, "");
     const { fetch } = router({
       "https://www.youtube.com/watch": () => new Response(noCaptions, { status: 200 }),
-      "https://www.youtube.com/youtubei/v1/player": () => new Response(JSON.stringify({ playabilityStatus: { status: "OK" } }), { status: 200 }),
+      "https://www.youtube.com/youtubei/v1/player": () =>
+        new Response(JSON.stringify({ playabilityStatus: { status: "OK" } }), { status: 200 }),
     });
     expect(await new InnertubeProvider({ fetch }).fetch("3wXfppSKkpg")).toBeNull();
 
-    const { fetch: f2 } = router({ "https://www.youtube.com/watch": () => new Response(WATCH, { status: 200 }) });
+    const { fetch: f2 } = router({
+      "https://www.youtube.com/watch": () => new Response(WATCH, { status: 200 }),
+    });
     expect(await new InnertubeProvider({ fetch: f2 }).fetch("3wXfppSKkpg", "fr")).toBeNull();
   });
 
@@ -186,7 +220,9 @@ describe("InnertubeProvider", () => {
       "https://www.youtube.com/watch": () => new Response(WATCH, { status: 200 }),
       "https://www.youtube.com/api/timedtext": () => new Response(BLOCKED, { status: 429 }),
     });
-    await expect(new InnertubeProvider({ fetch: f2 }).fetch("3wXfppSKkpg")).rejects.toBeInstanceOf(TranscriptBlockedError);
+    await expect(new InnertubeProvider({ fetch: f2 }).fetch("3wXfppSKkpg")).rejects.toBeInstanceOf(
+      TranscriptBlockedError,
+    );
   });
 
   it("network errors and 5xx are retryable TranscriptErrors; missing player response is an error", async () => {
@@ -199,8 +235,12 @@ describe("InnertubeProvider", () => {
     expect(e).toBeInstanceOf(TranscriptError);
     expect(e.retryable).toBe(true);
 
-    const { fetch } = router({ "https://www.youtube.com/watch": () => new Response("<html>no player here</html>", { status: 200 }) });
-    const e2 = (await new InnertubeProvider({ fetch }).fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
+    const { fetch } = router({
+      "https://www.youtube.com/watch": () => new Response("<html>no player here</html>", { status: 200 }),
+    });
+    const e2 = (await new InnertubeProvider({ fetch })
+      .fetch("3wXfppSKkpg")
+      .catch((e: unknown) => e)) as TranscriptError;
     expect(e2.message).toMatch(/ytInitialPlayerResponse/);
   });
 });
@@ -214,7 +254,9 @@ describe.skipIf(!process.env["TRANSCRIPT_LIVE_TESTS"])("InnertubeProvider (live)
     const p = new InnertubeProvider();
     try {
       const t = await p.fetch("3wXfppSKkpg");
-      process.stderr.write(`[live] innertube result: ${t ? `${t.segments.length} segments, lang=${t.language}` : "null (no captions)"}\n`);
+      process.stderr.write(
+        `[live] innertube result: ${t ? `${t.segments.length} segments, lang=${t.language}` : "null (no captions)"}\n`,
+      );
       if (t) expect(t.segments.length).toBeGreaterThan(10);
     } catch (err) {
       process.stderr.write(`[live] innertube blocked: ${(err as Error).message}\n`);

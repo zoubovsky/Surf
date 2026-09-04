@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MAX_REVISIONS, runDecisionStages, type DecisionInputs } from "./orchestrate.js";
-import { createFakeClient, fakeMessage, fakeResponse, stageOf, type FakeLlmClient } from "./testing/fake-client.js";
+import {
+  createFakeClient,
+  fakeMessage,
+  fakeResponse,
+  stageOf,
+  type FakeLlmClient,
+} from "./testing/fake-client.js";
 import * as F from "./testing/fixtures.js";
 
 function inputs(over: Partial<DecisionInputs> = {}): DecisionInputs {
@@ -21,7 +27,10 @@ function inputs(over: Partial<DecisionInputs> = {}): DecisionInputs {
 const models = { researcher: "claude-sonnet-5", analyst: "claude-opus-5", reviewer: "claude-opus-5" };
 
 /** Fake that answers every stage; verdicts are taken from the queue in order. */
-function scripted(verdicts: Array<"approve" | "revise" | "reject">, planFor: (round: number) => unknown = () => F.plan()): FakeLlmClient {
+function scripted(
+  verdicts: Array<"approve" | "revise" | "reject">,
+  planFor: (round: number) => unknown = () => F.plan(),
+): FakeLlmClient {
   let analyzeRound = 0;
   let reviewRound = 0;
   return createFakeClient({
@@ -34,7 +43,11 @@ function scripted(verdicts: Array<"approve" | "revise" | "reject">, planFor: (ro
           return planFor(analyzeRound++);
         case "review-coerce": {
           const v = verdicts[reviewRound++] ?? "revise";
-          return F.verdict({ verdict: v, severity: v === "approve" ? "none" : v === "revise" ? "minor" : "major", reasons: [`${v} reason`] });
+          return F.verdict({
+            verdict: v,
+            severity: v === "approve" ? "none" : v === "revise" ? "minor" : "major",
+            reasons: [`${v} reason`],
+          });
         }
         default:
           throw new Error(`unexpected stage ${stageOf(params)}`);
@@ -61,7 +74,10 @@ describe("runDecisionStages", () => {
     }
     expect(run.stages[0]!.model).toBe("claude-sonnet-5");
     expect(run.stages[1]!.model).toBe("claude-opus-5");
-    expect(run.totalUsage.costUsd).toBeCloseTo(run.stages.reduce((a, s) => a + s.usage.costUsd, 0), 12);
+    expect(run.totalUsage.costUsd).toBeCloseTo(
+      run.stages.reduce((a, s) => a + s.usage.costUsd, 0),
+      12,
+    );
     expect(stageNames(client)).toEqual(["research-coerce", "analyze", "review-coerce"]);
   });
 
@@ -88,7 +104,10 @@ describe("runDecisionStages", () => {
   });
 
   it("approves after one revision", async () => {
-    const run = await runDecisionStages({ client: scripted(["revise", "approve"]), models, budgetUsd: 50 }, inputs());
+    const run = await runDecisionStages(
+      { client: scripted(["revise", "approve"]), models, budgetUsd: 50 },
+      inputs(),
+    );
     expect(run.terminal).toBe("approved");
     expect(run.revisions).toBe(1);
     expect(run.stages).toHaveLength(5);
@@ -98,7 +117,11 @@ describe("runDecisionStages", () => {
     const client = createFakeClient({
       onToolRunner: () => [fakeMessage("notes", { usage: { input_tokens: 400_000, output_tokens: 10_000 } })],
       onParse: (params) => {
-        if (stageOf(params) === "research-coerce") return fakeResponse({ output: F.context(), usage: { input_tokens: 200_000, output_tokens: 5_000 } });
+        if (stageOf(params) === "research-coerce")
+          return fakeResponse({
+            output: F.context(),
+            usage: { input_tokens: 200_000, output_tokens: 5_000 },
+          });
         throw new Error("should not reach " + stageOf(params));
       },
     });
@@ -119,7 +142,9 @@ describe("runDecisionStages", () => {
   });
 
   it("skips the reviewer for no-trade plans and reuses a supplied context", async () => {
-    const client = scripted([], () => F.plan({ action: "no-trade", entry: null, entryKind: null, stopLoss: null, takeProfit: null }));
+    const client = scripted([], () =>
+      F.plan({ action: "no-trade", entry: null, entryKind: null, stopLoss: null, takeProfit: null }),
+    );
     const run = await runDecisionStages({ client, models, budgetUsd: 5, context: F.context() }, inputs());
     expect(run.terminal).toBe("approved");
     expect(run.review).toBeNull();
@@ -137,10 +162,25 @@ describe("runDecisionStages", () => {
         budgetUsd: 5,
         reviewerTools: () => ({
           getCandidate: () => null,
-          checkStopVsInvalidation: () => ({ ok: true, detail: "", stop: null, invalidation: null, bufferPct: null, stopDistancePct: null }),
+          checkStopVsInvalidation: () => ({
+            ok: true,
+            detail: "",
+            stop: null,
+            invalidation: null,
+            bufferPct: null,
+            stopDistancePct: null,
+          }),
           recomputeRewardRisk: () => {
             called++;
-            return { rewardRisk: 3, detail: "", entryPrice: null, riskPerUnit: null, rewardPerUnitAfterCosts: null, feePerUnit: null, fundingPerUnit: null };
+            return {
+              rewardRisk: 3,
+              detail: "",
+              entryPrice: null,
+              riskPerUnit: null,
+              rewardPerUnitAfterCosts: null,
+              feePerUnit: null,
+              fundingPerUnit: null,
+            };
           },
           getPriorLevels: () => null,
         }),

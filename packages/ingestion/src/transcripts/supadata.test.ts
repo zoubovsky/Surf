@@ -11,7 +11,8 @@ function fakeFetch(steps: Step[]) {
     calls.push({ url, init: init ?? {} });
     const step = steps.shift();
     if (!step) throw new Error("unexpected extra request " + url);
-    const body = step.body === undefined ? null : typeof step.body === "string" ? step.body : JSON.stringify(step.body);
+    const body =
+      step.body === undefined ? null : typeof step.body === "string" ? step.body : JSON.stringify(step.body);
     return new Response(body, { status: step.status, headers: step.headers ?? {} });
   };
   return { fetch, calls };
@@ -34,13 +35,24 @@ const SEGMENTS = [
 
 describe("SupadataProvider", () => {
   it("calls the documented YouTube endpoint with the x-api-key header", async () => {
-    const { provider, calls } = mk([{ status: 200, body: { content: SEGMENTS, lang: "en", availableLangs: ["en"] }, headers: { "x-billable-requests": "1" } }]);
+    const { provider, calls } = mk([
+      {
+        status: 200,
+        body: { content: SEGMENTS, lang: "en", availableLangs: ["en"] },
+        headers: { "x-billable-requests": "1" },
+      },
+    ]);
     const t = await provider.fetch("3wXfppSKkpg");
     const u = new URL(calls[0]!.url);
     expect(u.origin + u.pathname).toBe("https://api.supadata.ai/v1/youtube/transcript");
     expect(Object.fromEntries(u.searchParams)).toEqual({ videoId: "3wXfppSKkpg", lang: "en", text: "false" });
     expect((calls[0]!.init.headers as Record<string, string>)["x-api-key"]).toBe("k");
-    expect(t).toMatchObject({ videoId: "3wXfppSKkpg", language: "en", source: "supadata", fetchedAt: clock.now() });
+    expect(t).toMatchObject({
+      videoId: "3wXfppSKkpg",
+      language: "en",
+      source: "supadata",
+      fetchedAt: clock.now(),
+    });
     expect(t!.segments).toEqual([
       { start: 0.48, duration: 4.56, text: "hello and welcome" },
       { start: 5.04, duration: 5.28, text: "the key level is 79k" },
@@ -50,7 +62,9 @@ describe("SupadataProvider", () => {
   });
 
   it("accepts plain-text content and reports the returned language", async () => {
-    const { provider } = mk([{ status: 200, body: { content: "just text", lang: "de", availableLangs: ["de"] } }]);
+    const { provider } = mk([
+      { status: 200, body: { content: "just text", lang: "de", availableLangs: ["de"] } },
+    ]);
     const t = await provider.fetch("3wXfppSKkpg", "en");
     expect(t!.language).toBe("de");
     expect(t!.segments).toEqual([{ start: 0, duration: 0, text: "just text" }]);
@@ -82,7 +96,9 @@ describe("SupadataProvider", () => {
   });
 
   it("maps 429 to TranscriptRateLimitError with Retry-After", async () => {
-    const { provider } = mk([{ status: 429, body: { error: "limit-exceeded" }, headers: { "retry-after": "2" } }]);
+    const { provider } = mk([
+      { status: 429, body: { error: "limit-exceeded" }, headers: { "retry-after": "2" } },
+    ]);
     const e = await provider.fetch("3wXfppSKkpg").catch((e: unknown) => e);
     expect(e).toBeInstanceOf(TranscriptRateLimitError);
     expect((e as TranscriptRateLimitError).retryAfterMs).toBe(2000);
@@ -90,7 +106,11 @@ describe("SupadataProvider", () => {
   });
 
   it("5xx is retryable, 400/403 are not", async () => {
-    const { provider } = mk([{ status: 500, body: { error: "internal-error" } }, { status: 403, body: { error: "forbidden" } }, { status: 400, body: "not json" }]);
+    const { provider } = mk([
+      { status: 500, body: { error: "internal-error" } },
+      { status: 403, body: { error: "forbidden" } },
+      { status: 400, body: "not json" },
+    ]);
     const e1 = (await provider.fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
     expect(e1.retryable).toBe(true);
     const e2 = (await provider.fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
@@ -118,7 +138,10 @@ describe("SupadataProvider", () => {
   });
 
   it("a failed job is a retryable error; a stalled job times out", async () => {
-    const { provider } = mk([{ status: 202, body: { jobId: "j1" } }, { status: 200, body: { status: "failed", error: { message: "boom" } } }]);
+    const { provider } = mk([
+      { status: 202, body: { jobId: "j1" } },
+      { status: 200, body: { status: "failed", error: { message: "boom" } } },
+    ]);
     const e = (await provider.fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
     expect(e).toBeInstanceOf(TranscriptError);
     expect(e.retryable).toBe(true);
@@ -126,8 +149,18 @@ describe("SupadataProvider", () => {
 
     let t = 0;
     const ticking = { now: () => (t += 60_000) };
-    const f = fakeFetch([{ status: 202, body: { jobId: "j2" } }, { status: 200, body: { status: "active" } }, { status: 200, body: { status: "active" } }]);
-    const p2 = new SupadataProvider({ apiKey: "k", fetch: f.fetch, clock: ticking, sleep, maxPollMs: 90_000 });
+    const f = fakeFetch([
+      { status: 202, body: { jobId: "j2" } },
+      { status: 200, body: { status: "active" } },
+      { status: 200, body: { status: "active" } },
+    ]);
+    const p2 = new SupadataProvider({
+      apiKey: "k",
+      fetch: f.fetch,
+      clock: ticking,
+      sleep,
+      maxPollMs: 90_000,
+    });
     const e2 = (await p2.fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
     expect(e2.message).toMatch(/still active/);
     expect(e2.retryable).toBe(true);
@@ -146,7 +179,10 @@ describe("SupadataProvider", () => {
   });
 
   it("universal endpoint variant sends url + mode", async () => {
-    const { provider, calls } = mk([{ status: 200, body: { content: SEGMENTS, lang: "en" } }], { endpoint: "universal", mode: "native" });
+    const { provider, calls } = mk([{ status: 200, body: { content: SEGMENTS, lang: "en" } }], {
+      endpoint: "universal",
+      mode: "native",
+    });
     await provider.fetch("3wXfppSKkpg");
     const u = new URL(calls[0]!.url);
     expect(u.pathname).toBe("/v1/transcript");

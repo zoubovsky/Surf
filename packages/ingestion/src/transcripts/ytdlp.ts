@@ -19,7 +19,11 @@ export interface ExecResult {
   stderr: string;
   code: number;
 }
-export type ExecFn = (file: string, args: string[], opts: { timeoutMs: number; cwd: string }) => Promise<ExecResult>;
+export type ExecFn = (
+  file: string,
+  args: string[],
+  opts: { timeoutMs: number; cwd: string },
+) => Promise<ExecResult>;
 
 export interface YtDlpOptions {
   /** Binary name or absolute path. Default "yt-dlp". */
@@ -37,25 +41,53 @@ export interface YtDlpOptions {
 
 export const defaultExec: ExecFn = (file, args, opts) =>
   new Promise((resolve) => {
-    execFile(file, args, { timeout: opts.timeoutMs, cwd: opts.cwd, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-      const code = err && typeof (err as NodeJS.ErrnoException & { code?: unknown }).code === "number" ? ((err as { code: number }).code) : err ? 1 : 0;
-      resolve({ stdout: String(stdout), stderr: String(stderr) + (err && code === 1 && !stderr ? `\n${err.message}` : ""), code });
-    });
+    execFile(
+      file,
+      args,
+      { timeout: opts.timeoutMs, cwd: opts.cwd, maxBuffer: 16 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const code =
+          err && typeof (err as NodeJS.ErrnoException & { code?: unknown }).code === "number"
+            ? (err as { code: number }).code
+            : err
+              ? 1
+              : 0;
+        resolve({
+          stdout: String(stdout),
+          stderr: String(stderr) + (err && code === 1 && !stderr ? `\n${err.message}` : ""),
+          code,
+        });
+      },
+    );
   });
 
 /** Locate an executable on PATH without spawning a shell. */
-export async function whichBinary(binary: string, env: NodeJS.ProcessEnv = process.env): Promise<string | null> {
-  if (binary.includes("/")) return access(binary).then(() => binary, () => null);
+export async function whichBinary(
+  binary: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string | null> {
+  if (binary.includes("/"))
+    return access(binary).then(
+      () => binary,
+      () => null,
+    );
   for (const dir of (env["PATH"] ?? "").split(delimiter).filter(Boolean)) {
     const candidate = join(dir, binary);
-    if (await access(candidate).then(() => true, () => false)) return candidate;
+    if (
+      await access(candidate).then(
+        () => true,
+        () => false,
+      )
+    )
+      return candidate;
   }
   return null;
 }
 
 const BOT_CHECK_RE = /Sign in to confirm you(?:'|’)re not a bot|HTTP Error 429|Too Many Requests/i;
 const NO_SUBS_RE = /no subtitles|There are no subtitles|Requested format is not available/i;
-const GONE_RE = /Video unavailable|Private video|This video is not available|removed by the uploader|members-only/i;
+const GONE_RE =
+  /Video unavailable|Private video|This video is not available|removed by the uploader|members-only/i;
 
 export class YtDlpProvider implements TranscriptProvider {
   readonly name = "yt-dlp";
@@ -72,7 +104,8 @@ export class YtDlpProvider implements TranscriptProvider {
 
   /** Whether yt-dlp is available (cached after first lookup). */
   async available(): Promise<boolean> {
-    if (this.resolvedBinary === undefined) this.resolvedBinary = await this.which(this.opts.binary ?? "yt-dlp");
+    if (this.resolvedBinary === undefined)
+      this.resolvedBinary = await this.which(this.opts.binary ?? "yt-dlp");
     return this.resolvedBinary !== null;
   }
 
@@ -103,11 +136,16 @@ export class YtDlpProvider implements TranscriptProvider {
       if (BOT_CHECK_RE.test(err)) throw new TranscriptBlockedError(this.name, "bot-check");
       if (res.code !== 0) {
         if (GONE_RE.test(err) || NO_SUBS_RE.test(err)) return null;
-        throw new TranscriptError(`yt-dlp exited ${res.code}: ${res.stderr.trim().slice(-400)}`, { provider: this.name, retryable: true });
+        throw new TranscriptError(`yt-dlp exited ${res.code}: ${res.stderr.trim().slice(-400)}`, {
+          provider: this.name,
+          retryable: true,
+        });
       }
       const files = (await readdir(dir)).filter((f) => f.startsWith(`${videoId}.`) && f.endsWith(".json3"));
       // Prefer an exact language file (id.en.json3) over variants (id.en-orig.json3).
-      files.sort((a, b) => (a === `${videoId}.${lang}.json3` ? -1 : b === `${videoId}.${lang}.json3` ? 1 : a.localeCompare(b)));
+      files.sort((a, b) =>
+        a === `${videoId}.${lang}.json3` ? -1 : b === `${videoId}.${lang}.json3` ? 1 : a.localeCompare(b),
+      );
       const file = files[0];
       if (!file) return null;
       const language = file.slice(videoId.length + 1, -".json3".length) || lang;

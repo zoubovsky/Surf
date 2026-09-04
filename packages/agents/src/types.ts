@@ -34,7 +34,10 @@ export const EvidenceReport = z.object({
 export type EvidenceReport = z.infer<typeof EvidenceReport>;
 
 export const FundingPoint = z.object({ time: z.number().int(), rateHourly: z.number() });
-export const OpenInterestPoint = z.object({ time: z.number().int(), openInterestUsd: z.number().nonnegative() });
+export const OpenInterestPoint = z.object({
+  time: z.number().int(),
+  openInterestUsd: z.number().nonnegative(),
+});
 export const CalendarEvent = z.object({
   when: z.number().int(),
   title: z.string().max(200),
@@ -121,7 +124,16 @@ export const OutcomeFacts = z.object({
   feesUsd: z.number(),
   fundingUsd: z.number(),
   slippageBps: z.number().nullable(),
-  exitReason: z.enum(["stop", "target", "invalidation-flatten", "trailing-stop", "breakeven-stop", "manual", "expired", "halt"]),
+  exitReason: z.enum([
+    "stop",
+    "target",
+    "invalidation-flatten",
+    "trailing-stop",
+    "breakeven-stop",
+    "manual",
+    "expired",
+    "halt",
+  ]),
   hitFirst: z.enum(["invalidation", "target", "neither"]),
   /** Bars the primary count survived after entry before being invalidated (null = still valid at close). */
   countSurvivedBars: z.number().int().nonnegative().nullable(),
@@ -186,18 +198,52 @@ export const DailyBriefInput = z.object({
     }),
   ),
   restingOrders: z.array(
-    z.object({ direction: Direction, price: z.number(), stopLoss: z.number(), takeProfit: z.number(), expiresAt: z.number().int().nullable() }),
+    z.object({
+      direction: Direction,
+      price: z.number(),
+      stopLoss: z.number(),
+      takeProfit: z.number(),
+      expiresAt: z.number().int().nullable(),
+    }),
   ),
   pnl: z.object({ todayUsd: z.number(), d7Usd: z.number(), d30Usd: z.number(), equityUsd: z.number() }),
   latestPrior: z
-    .object({ title: z.string(), publishedAt: z.number().int(), bias: Direction.nullable(), primaryCount: z.string(), invalidation: z.number().nullable() })
+    .object({
+      title: z.string(),
+      publishedAt: z.number().int(),
+      bias: Direction.nullable(),
+      primaryCount: z.string(),
+      invalidation: z.number().nullable(),
+    })
     .nullable(),
-  ownCount: z.array(z.object({ id: z.string(), interval: z.string(), direction: Direction, position: z.string(), invalidation: z.number(), score: z.number() })),
-  regime: z.object({ regime: z.string(), fundingRateHourly: z.number(), fundingAssessment: z.string(), openInterestTrend: z.string() }),
-  events: z.array(z.object({ when: z.number().int(), description: z.string(), severity: z.string() })).max(10),
+  ownCount: z.array(
+    z.object({
+      id: z.string(),
+      interval: z.string(),
+      direction: Direction,
+      position: z.string(),
+      invalidation: z.number(),
+      score: z.number(),
+    }),
+  ),
+  regime: z.object({
+    regime: z.string(),
+    fundingRateHourly: z.number(),
+    fundingAssessment: z.string(),
+    openInterestTrend: z.string(),
+  }),
+  events: z
+    .array(z.object({ when: z.number().int(), description: z.string(), severity: z.string() }))
+    .max(10),
   calibration: CalibrationSummary.nullable(),
   llmSpend: z.object({ todayUsd: z.number(), budgetUsd: z.number() }),
-  health: z.object({ tradingMode: z.string(), paused: z.boolean(), halted: z.boolean(), haltReason: z.string().nullable(), lastError: z.string().nullable() }),
+  health: z.object({
+    tradingMode: z.string(),
+    paused: z.boolean(),
+    halted: z.boolean(),
+    haltReason: z.string().nullable(),
+    lastError: z.string().nullable(),
+  }),
 });
 export type DailyBriefInput = z.infer<typeof DailyBriefInput>;
 

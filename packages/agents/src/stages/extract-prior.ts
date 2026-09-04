@@ -14,7 +14,10 @@ export const EXTRACT_PRIOR_MAX_TOKENS = 16_000;
 export type ExtractPriorResult = StageResult<AnalystPrior> & { verification: EvidenceReport };
 
 /** Opus extraction of the analyst prior, followed by deterministic evidence verification. */
-export async function extractPrior(deps: StageDeps, rawInput: ExtractPriorInputRaw): Promise<ExtractPriorResult> {
+export async function extractPrior(
+  deps: StageDeps,
+  rawInput: ExtractPriorInputRaw,
+): Promise<ExtractPriorResult> {
   const input = ExtractPriorInput.parse(rawInput);
   const reasoning = reasoningFor(deps.model, "high");
   const run = await runParse(deps.client, "extract-prior", {
@@ -23,7 +26,10 @@ export async function extractPrior(deps: StageDeps, rawInput: ExtractPriorInputR
     system: systemBlocks(SYSTEM_EXTRACT_PRIOR),
     messages: [buildExtractPriorUserMessage(input)],
     ...(reasoning.thinking ? { thinking: reasoning.thinking } : {}),
-    output_config: { ...(reasoning.effort ? { effort: reasoning.effort } : {}), format: lenientFormat(AnalystPrior) },
+    output_config: {
+      ...(reasoning.effort ? { effort: reasoning.effort } : {}),
+      format: lenientFormat(AnalystPrior),
+    },
   });
   let parsed: AnalystPrior;
   try {

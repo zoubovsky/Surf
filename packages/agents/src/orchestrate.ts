@@ -1,4 +1,14 @@
-import type { AccountSnapshot, AnalystPrior, EwAnalysis, MarketContext, MarketSnapshot, ReviewVerdict, RiskLimits, TradePlan, TradingState } from "@surf/core";
+import type {
+  AccountSnapshot,
+  AnalystPrior,
+  EwAnalysis,
+  MarketContext,
+  MarketSnapshot,
+  ReviewVerdict,
+  RiskLimits,
+  TradePlan,
+  TradingState,
+} from "@surf/core";
 import type { LlmClient } from "./client.js";
 import type { ResearchInput } from "./prompts/research.js";
 import { analyze } from "./stages/analyze.js";
@@ -64,18 +74,40 @@ export async function runDecisionStages(deps: DecisionDeps, inputs: DecisionInpu
     total = addTotals(total, r.usage);
   };
   const overBudget = () => total.costUsd > deps.budgetUsd;
-  const finish = (partial: Omit<DecisionRun, "stages" | "totalUsage">): DecisionRun => ({ ...partial, stages, totalUsage: total });
+  const finish = (partial: Omit<DecisionRun, "stages" | "totalUsage">): DecisionRun => ({
+    ...partial,
+    stages,
+    totalUsage: total,
+  });
   const priorMaxAgeHours = deps.priorMaxAgeHours ?? 48;
 
   let context: MarketContext;
   if (deps.context) {
     context = deps.context;
   } else {
-    const r = await research({ client: deps.client, model: deps.models.researcher }, { ...inputs.research, market: inputs.market });
-    record({ stage: "research", round: 0, model: r.model, promptHash: r.promptHash, usage: r.usage, durationMs: r.durationMs, output: r.output });
+    const r = await research(
+      { client: deps.client, model: deps.models.researcher },
+      { ...inputs.research, market: inputs.market },
+    );
+    record({
+      stage: "research",
+      round: 0,
+      model: r.model,
+      promptHash: r.promptHash,
+      usage: r.usage,
+      durationMs: r.durationMs,
+      output: r.output,
+    });
     context = r.output;
     if (overBudget()) {
-      return finish({ plan: null, review: null, context, terminal: "exhausted", reason: budgetReason(total, deps.budgetUsd, "research"), revisions: 0 });
+      return finish({
+        plan: null,
+        review: null,
+        context,
+        terminal: "exhausted",
+        reason: budgetReason(total, deps.budgetUsd, "research"),
+        revisions: 0,
+      });
     }
   }
 
@@ -111,19 +143,52 @@ export async function runDecisionStages(deps: DecisionDeps, inputs: DecisionInpu
       analyzeInput,
       verdict ? { revision: { round, review: verdict } } : {},
     );
-    record({ stage: "analyze", round, model: a.model, promptHash: a.promptHash, usage: a.usage, durationMs: a.durationMs, output: a.output });
+    record({
+      stage: "analyze",
+      round,
+      model: a.model,
+      promptHash: a.promptHash,
+      usage: a.usage,
+      durationMs: a.durationMs,
+      output: a.output,
+    });
     plan = a.output;
     if (overBudget()) {
-      return finish({ plan, review: verdict, context, terminal: "exhausted", reason: budgetReason(total, deps.budgetUsd, "analyze"), revisions });
+      return finish({
+        plan,
+        review: verdict,
+        context,
+        terminal: "exhausted",
+        reason: budgetReason(total, deps.budgetUsd, "analyze"),
+        revisions,
+      });
     }
 
     if (plan.action === "no-trade" && (deps.skipReviewForNoTrade ?? true)) {
-      return finish({ plan, review: null, context, terminal: "approved", reason: "no-trade plan; reviewer skipped by policy", revisions });
+      return finish({
+        plan,
+        review: null,
+        context,
+        terminal: "approved",
+        reason: "no-trade plan; reviewer skipped by policy",
+        revisions,
+      });
     }
 
     const rv = await review(
       { client: deps.client, model: deps.models.reviewer },
-      { plan, ew: inputs.ew, prior: inputs.prior, context, account: inputs.account, market: inputs.market, state: inputs.state, limits: inputs.limits, openPosition: reviewOpenPosition, priorMaxAgeHours },
+      {
+        plan,
+        ew: inputs.ew,
+        prior: inputs.prior,
+        context,
+        account: inputs.account,
+        market: inputs.market,
+        state: inputs.state,
+        limits: inputs.limits,
+        openPosition: reviewOpenPosition,
+        priorMaxAgeHours,
+      },
       tools,
     );
     record({
@@ -137,14 +202,35 @@ export async function runDecisionStages(deps: DecisionDeps, inputs: DecisionInpu
     });
     verdict = rv.output;
     if (overBudget()) {
-      return finish({ plan, review: verdict, context, terminal: "exhausted", reason: budgetReason(total, deps.budgetUsd, "review"), revisions });
+      return finish({
+        plan,
+        review: verdict,
+        context,
+        terminal: "exhausted",
+        reason: budgetReason(total, deps.budgetUsd, "review"),
+        revisions,
+      });
     }
 
     if (verdict.verdict === "approve") {
-      return finish({ plan, review: verdict, context, terminal: "approved", reason: `reviewer approved after ${revisions} revision(s)`, revisions });
+      return finish({
+        plan,
+        review: verdict,
+        context,
+        terminal: "approved",
+        reason: `reviewer approved after ${revisions} revision(s)`,
+        revisions,
+      });
     }
     if (verdict.verdict === "reject") {
-      return finish({ plan, review: verdict, context, terminal: "rejected", reason: `reviewer rejected: ${verdict.reasons[0] ?? "no reason given"}`, revisions });
+      return finish({
+        plan,
+        review: verdict,
+        context,
+        terminal: "rejected",
+        reason: `reviewer rejected: ${verdict.reasons[0] ?? "no reason given"}`,
+        revisions,
+      });
     }
     if (round === MAX_REVISIONS) break;
     revisions++;
@@ -160,7 +246,12 @@ export async function runDecisionStages(deps: DecisionDeps, inputs: DecisionInpu
 }
 
 function defaultReviewerTools(inputs: DecisionInputs): ReviewerTools {
-  return createReviewerTools({ ew: inputs.ew, prior: inputs.prior, market: inputs.market, limits: inputs.limits });
+  return createReviewerTools({
+    ew: inputs.ew,
+    prior: inputs.prior,
+    market: inputs.market,
+    limits: inputs.limits,
+  });
 }
 
 function budgetReason(total: UsageTotals, budget: number, stage: string): string {

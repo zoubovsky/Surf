@@ -1,10 +1,20 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildFeedUrl, FeedFetchError, fetchLongFormFeed, MCO_CHANNEL_ID, MCO_LONGFORM_PLAYLIST_ID, parseFeed, type FetchLike } from "./feed.js";
+import {
+  buildFeedUrl,
+  FeedFetchError,
+  fetchLongFormFeed,
+  MCO_CHANNEL_ID,
+  MCO_LONGFORM_PLAYLIST_ID,
+  parseFeed,
+  type FetchLike,
+} from "./feed.js";
 
 const FIXTURE = readFileSync(new URL("./__fixtures__/uulf-feed.xml", import.meta.url), "utf8");
 
-function fakeFetch(handler: (url: string, init?: RequestInit) => Response): FetchLike & { calls: { url: string; init?: RequestInit }[] } {
+function fakeFetch(
+  handler: (url: string, init?: RequestInit) => Response,
+): FetchLike & { calls: { url: string; init?: RequestInit }[] } {
   const calls: { url: string; init?: RequestInit }[] = [];
   const fn = (async (url: string, init?: RequestInit) => {
     calls.push(init ? { url, init } : { url });
@@ -30,8 +40,21 @@ describe("parseFeed (live UULF fixture, 2026-09-04)", () => {
     expect(parsed.videos).toHaveLength(15);
     expect(parsed.skipped).toBe(0);
     expect(parsed.videos.map((v) => v.videoId)).toEqual([
-      "JUq2FuOWuX8", "3wXfppSKkpg", "uXa-onE9qsw", "UM38dzo6n5c", "DQhNm7yGRDo", "PdMTVWEBsho", "bBNu9b3HyWw",
-      "2S4u329EsSc", "rsLjW9aDPeg", "cQ38rSa1DCI", "qzQ2pUZlmGg", "u6ltPTHxj_U", "GTTRvGpgLXI", "6XF4x2QilUY", "dv_XIROh0Q4",
+      "JUq2FuOWuX8",
+      "3wXfppSKkpg",
+      "uXa-onE9qsw",
+      "UM38dzo6n5c",
+      "DQhNm7yGRDo",
+      "PdMTVWEBsho",
+      "bBNu9b3HyWw",
+      "2S4u329EsSc",
+      "rsLjW9aDPeg",
+      "cQ38rSa1DCI",
+      "qzQ2pUZlmGg",
+      "u6ltPTHxj_U",
+      "GTTRvGpgLXI",
+      "6XF4x2QilUY",
+      "dv_XIROh0Q4",
     ]);
   });
 
@@ -50,7 +73,8 @@ describe("parseFeed (live UULF fixture, 2026-09-04)", () => {
   });
 
   it("emits newest first as in the feed and every id is 11 chars", () => {
-    for (let i = 1; i < parsed.videos.length; i++) expect(parsed.videos[i]!.publishedAt).toBeLessThanOrEqual(parsed.videos[i - 1]!.publishedAt);
+    for (let i = 1; i < parsed.videos.length; i++)
+      expect(parsed.videos[i]!.publishedAt).toBeLessThanOrEqual(parsed.videos[i - 1]!.publishedAt);
     for (const v of parsed.videos) expect(v.videoId).toMatch(/^[A-Za-z0-9_-]{11}$/);
   });
 });
@@ -100,12 +124,20 @@ describe("fetchLongFormFeed", () => {
     expect(buildFeedUrl({ playlistId: MCO_LONGFORM_PLAYLIST_ID })).toBe(
       "https://www.youtube.com/feeds/videos.xml?playlist_id=UULFngIhBkikUe6e7tZTjpKK7Q",
     );
-    expect(buildFeedUrl({ channelId: MCO_CHANNEL_ID })).toBe("https://www.youtube.com/feeds/videos.xml?channel_id=UCngIhBkikUe6e7tZTjpKK7Q");
+    expect(buildFeedUrl({ channelId: MCO_CHANNEL_ID })).toBe(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=UCngIhBkikUe6e7tZTjpKK7Q",
+    );
     expect(() => buildFeedUrl({})).toThrow();
   });
 
   it("fetches, parses and returns validators", async () => {
-    const fetch = fakeFetch(() => new Response(FIXTURE, { status: 200, headers: { etag: '"abc"', "last-modified": "Fri, 04 Sep 2026 16:54:03 GMT" } }));
+    const fetch = fakeFetch(
+      () =>
+        new Response(FIXTURE, {
+          status: 200,
+          headers: { etag: '"abc"', "last-modified": "Fri, 04 Sep 2026 16:54:03 GMT" },
+        }),
+    );
     const res = await fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch });
     expect(res.notModified).toBe(false);
     if (res.notModified) throw new Error("unreachable");
@@ -119,7 +151,12 @@ describe("fetchLongFormFeed", () => {
 
   it("sends If-None-Match / If-Modified-Since and handles 304", async () => {
     const fetch = fakeFetch(() => new Response(null, { status: 304 }));
-    const res = await fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch, etag: '"abc"', lastModified: "Fri, 04 Sep 2026 16:54:03 GMT" });
+    const res = await fetchLongFormFeed({
+      playlistId: MCO_LONGFORM_PLAYLIST_ID,
+      fetch,
+      etag: '"abc"',
+      lastModified: "Fri, 04 Sep 2026 16:54:03 GMT",
+    });
     expect(res.notModified).toBe(true);
     expect(res.status).toBe(304);
     const headers = fetch.calls[0]!.init!.headers as Record<string, string>;
@@ -136,11 +173,15 @@ describe("fetchLongFormFeed", () => {
 
   it("throws FeedFetchError on non-2xx", async () => {
     const fetch = fakeFetch(() => new Response("nope", { status: 503 }));
-    await expect(fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch })).rejects.toBeInstanceOf(FeedFetchError);
+    await expect(fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch })).rejects.toBeInstanceOf(
+      FeedFetchError,
+    );
   });
 
   it("rejects oversized bodies", async () => {
     const fetch = fakeFetch(() => new Response(FIXTURE, { status: 200 }));
-    await expect(fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch, maxBytes: 1000 })).rejects.toThrow(/exceeds/);
+    await expect(
+      fetchLongFormFeed({ playlistId: MCO_LONGFORM_PLAYLIST_ID, fetch, maxBytes: 1000 }),
+    ).rejects.toThrow(/exceeds/);
   });
 });

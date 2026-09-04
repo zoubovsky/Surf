@@ -27,7 +27,11 @@ describe("computeOutcome", () => {
       fundingPaid: 1,
       openedAt: 0,
       closedAt: 3 * 3_600_000,
-      candles: [candle(0, 77_000, 78_500), candle(3_600_000, 77_800, 81_000), candle(7_200_000, 80_000, 82_500)],
+      candles: [
+        candle(0, 77_000, 78_500),
+        candle(3_600_000, 77_800, 81_000),
+        candle(7_200_000, 80_000, 82_500),
+      ],
     });
     expect(o.grossPnl).toBeCloseTo(200);
     expect(o.netPnl).toBeCloseTo(195);

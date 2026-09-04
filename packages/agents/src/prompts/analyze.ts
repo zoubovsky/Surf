@@ -65,7 +65,11 @@ export function planShapingLimits(limits: RiskLimits): Record<string, number> {
   };
 }
 
-export function priorFreshness(prior: AnalystPrior | null, nowMs: number, maxAgeHours: number): { ageHours: number; fresh: boolean } | null {
+export function priorFreshness(
+  prior: AnalystPrior | null,
+  nowMs: number,
+  maxAgeHours: number,
+): { ageHours: number; fresh: boolean } | null {
   if (!prior) return null;
   const ageHours = (nowMs - prior.publishedAt) / 3_600_000;
   return { ageHours: Math.round(ageHours * 10) / 10, fresh: ageHours >= 0 && ageHours <= maxAgeHours };
@@ -80,7 +84,11 @@ export function buildAnalyzeUserMessage(input: AnalyzeInput): MessageParam {
     dataBlock("ew_analysis_1h", input.ew.h1),
     dataBlock("ew_analysis_4h", input.ew.h4),
     input.prior
-      ? dataBlock("analyst_prior", { ...input.prior, publishedAtIso: isoTime(input.prior.publishedAt), freshness })
+      ? dataBlock("analyst_prior", {
+          ...input.prior,
+          publishedAtIso: isoTime(input.prior.publishedAt),
+          freshness,
+        })
       : "<analyst_prior>null (no video prior available; if you trade, say you are trading the engine count alone)</analyst_prior>",
     dataBlock("market_context", input.context),
     dataBlock("market", input.market),

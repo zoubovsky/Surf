@@ -21,7 +21,10 @@ export function buildTriageUserMessage(transcriptText: string, title: string): M
   const body = clip(transcriptText, TRIAGE_MAX_TRANSCRIPT_CHARS);
   return userMessage(
     `Video title: ${untrustedBlock("untrusted_title", title)}`,
-    untrustedBlock("untrusted_transcript", body, { truncated: truncated ? "true" : "false", source: "youtube-auto-captions" }),
+    untrustedBlock("untrusted_transcript", body, {
+      truncated: truncated ? "true" : "false",
+      source: "youtube-auto-captions",
+    }),
     "Classify this video.",
   );
 }

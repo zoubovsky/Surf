@@ -20,17 +20,35 @@ describe("bench", () => {
     writeFileSync(
       loose,
       JSON.stringify({
-        data: [...series.candles].reverse().map((c) => ({ t: c.openTime / 1000, o: String(c.open), h: c.high, l: c.low, c: c.close, v: c.volume })),
+        data: [...series.candles]
+          .reverse()
+          .map((c) => ({
+            t: c.openTime / 1000,
+            o: String(c.open),
+            h: c.high,
+            l: c.low,
+            c: c.close,
+            v: c.volume,
+          })),
       }),
     );
-    writeFileSync(kline, JSON.stringify(series.candles.map((c) => [c.openTime, c.open, c.high, c.low, c.close, c.volume, c.closeTime])));
+    writeFileSync(
+      kline,
+      JSON.stringify(
+        series.candles.map((c) => [c.openTime, c.open, c.high, c.low, c.close, c.volume, c.closeTime]),
+      ),
+    );
     const a = loadCandles(core);
     const b = loadCandles(loose);
     const c = loadCandles(kline);
     expect(a).toHaveLength(series.candles.length);
-    expect(b.map((x) => [x.openTime, x.open, x.high, x.low, x.close])).toEqual(a.map((x) => [x.openTime, x.open, x.high, x.low, x.close]));
+    expect(b.map((x) => [x.openTime, x.open, x.high, x.low, x.close])).toEqual(
+      a.map((x) => [x.openTime, x.open, x.high, x.low, x.close]),
+    );
     expect(c.map((x) => x.closeTime)).toEqual(a.map((x) => x.closeTime));
-    expect(analyze(b).candidates.map((x) => x.id)).toEqual(analyze(series.candles).candidates.map((x) => x.id));
+    expect(analyze(b).candidates.map((x) => x.id)).toEqual(
+      analyze(series.candles).candidates.map((x) => x.id),
+    );
   });
 
   it("rejects unsupported rows and shapes", () => {

@@ -16,9 +16,12 @@ export interface StateStoreOptions {
 
 /** Local calendar day for a timestamp in the configured time zone (YYYY-MM-DD). */
 export function dayKey(ts: number, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(ts),
-  );
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ts));
 }
 
 /**
@@ -112,8 +115,10 @@ export class TradingStateStore {
     const dailyLossPct = s.dayStartEquity > 0 ? ((s.dayStartEquity - equity) / s.dayStartEquity) * 100 : 0;
     const ddPct = s.highWaterEquity > 0 ? ((s.highWaterEquity - equity) / s.highWaterEquity) * 100 : 0;
     let reason: string | null = null;
-    if (dailyLossPct >= this.limits.maxDailyLossPct) reason = `daily loss ${dailyLossPct.toFixed(2)}% >= ${this.limits.maxDailyLossPct}%`;
-    else if (ddPct >= this.limits.maxDrawdownPct) reason = `drawdown ${ddPct.toFixed(2)}% >= ${this.limits.maxDrawdownPct}%`;
+    if (dailyLossPct >= this.limits.maxDailyLossPct)
+      reason = `daily loss ${dailyLossPct.toFixed(2)}% >= ${this.limits.maxDailyLossPct}%`;
+    else if (ddPct >= this.limits.maxDrawdownPct)
+      reason = `drawdown ${ddPct.toFixed(2)}% >= ${this.limits.maxDrawdownPct}%`;
     else if (s.consecutiveStopOuts >= this.limits.maxConsecutiveStopOuts)
       reason = `${s.consecutiveStopOuts} consecutive stop-outs`;
     if (reason) this.halt(reason);
@@ -153,7 +158,8 @@ export class TradingStateStore {
   }
 
   recordExit(realizedR: number, reason: string): void {
-    if (reason === "stop" || reason === "invalidation" || realizedR <= -0.5) this.state.consecutiveStopOuts += 1;
+    if (reason === "stop" || reason === "invalidation" || realizedR <= -0.5)
+      this.state.consecutiveStopOuts += 1;
     else if (realizedR > 0) this.state.consecutiveStopOuts = 0;
     this.save();
   }

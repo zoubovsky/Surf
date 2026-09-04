@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { Candle } from "@surf/core";
-import { candlesFromPath, correctionLegs, impulseLegs, insideBar, lcg, randomWalk, syntheticImpulse } from "./synthetic.js";
+import {
+  candlesFromPath,
+  correctionLegs,
+  impulseLegs,
+  insideBar,
+  lcg,
+  randomWalk,
+  syntheticImpulse,
+} from "./synthetic.js";
 
 describe("synthetic", () => {
   it("lcg is deterministic and in [0,1)", () => {

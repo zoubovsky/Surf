@@ -48,7 +48,8 @@ export function sizePosition(input: SizingInput): SizingResult | { error: string
   if (size * entryPrice > maxNotional) size = maxNotional / entryPrice;
   size = roundToStep(size, sizeStep);
   const notionalUsd = size * entryPrice;
-  if (size <= 0 || notionalUsd < minNotionalUsd) return { error: `notional ${notionalUsd.toFixed(2)} below minimum` };
+  if (size <= 0 || notionalUsd < minNotionalUsd)
+    return { error: `notional ${notionalUsd.toFixed(2)} below minimum` };
   const leverage = Math.min(maxLeverage, Math.max(1, Math.ceil((notionalUsd / equity) * 100) / 100));
   return {
     size,

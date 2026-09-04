@@ -16,7 +16,11 @@ export const UNTRUSTED_NOTICE =
 const TAG_BREAKOUT = /<\/?untrusted_[a-z_]*>/gi;
 
 /** Wrap third-party text as a delimited untrusted block. Only literal tag breakouts are stripped, nothing else. */
-export function untrustedBlock(tag: `untrusted_${string}`, text: string, attrs: Record<string, string> = {}): string {
+export function untrustedBlock(
+  tag: `untrusted_${string}`,
+  text: string,
+  attrs: Record<string, string> = {},
+): string {
   const attrText = Object.keys(attrs)
     .sort()
     .map((k) => ` ${k}="${attrs[k]!.replace(/"/g, "'")}"`)

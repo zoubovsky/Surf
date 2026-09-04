@@ -81,10 +81,21 @@ describe("FeedWatcher", () => {
   it("a wider lookback pulls in older Bitcoin videos in publication order", async () => {
     const clock = new FakeClock(NEWEST + HOUR);
     const server = feedServer(FIXTURE);
-    const watcher = new FeedWatcher({ fetch: server.fetch, seen: new InMemorySeenStore(), clock, lookbackMs: 72 * HOUR });
+    const watcher = new FeedWatcher({
+      fetch: server.fetch,
+      seen: new InMemorySeenStore(),
+      clock,
+      lookbackMs: 72 * HOUR,
+    });
     const r = await watcher.poll();
-    expect(r.videos.map((v) => v.videoId)).toEqual(["qzQ2pUZlmGg", "rsLjW9aDPeg", "bBNu9b3HyWw", "3wXfppSKkpg"]);
-    for (let i = 1; i < r.videos.length; i++) expect(r.videos[i]!.publishedAt).toBeGreaterThan(r.videos[i - 1]!.publishedAt);
+    expect(r.videos.map((v) => v.videoId)).toEqual([
+      "qzQ2pUZlmGg",
+      "rsLjW9aDPeg",
+      "bBNu9b3HyWw",
+      "3wXfppSKkpg",
+    ]);
+    for (let i = 1; i < r.videos.length; i++)
+      expect(r.videos[i]!.publishedAt).toBeGreaterThan(r.videos[i - 1]!.publishedAt);
   });
 
   it("does not re-ingest history after a restart with a persistent store", async () => {
@@ -116,7 +127,9 @@ describe("FeedWatcher", () => {
 
     clock.t += 10 * 60_000;
     const publishedIso = new Date(clock.t - 60_000).toISOString();
-    server.set(withNewEntry(FIXTURE, entry("NEWBTC12345", "Bitcoin Just Broke 80K - Now What?", publishedIso)));
+    server.set(
+      withNewEntry(FIXTURE, entry("NEWBTC12345", "Bitcoin Just Broke 80K - Now What?", publishedIso)),
+    );
     const emitted: string[] = [];
     watcher.on("video", (v) => emitted.push(v.videoId));
     const r = await watcher.poll();
@@ -128,7 +141,12 @@ describe("FeedWatcher", () => {
   it("ignores a new non-Bitcoin video but records it as seen", async () => {
     const clock = new FakeClock(NEWEST + HOUR);
     const seen = new InMemorySeenStore();
-    const server = feedServer(withNewEntry(FIXTURE, entry("NEWETH12345", "Ethereum Breaks Out", new Date(NEWEST + 30 * 60_000).toISOString())));
+    const server = feedServer(
+      withNewEntry(
+        FIXTURE,
+        entry("NEWETH12345", "Ethereum Breaks Out", new Date(NEWEST + 30 * 60_000).toISOString()),
+      ),
+    );
     const watcher = new FeedWatcher({ fetch: server.fetch, seen, clock });
     const r = await watcher.poll();
     expect(r.videos.map((v) => v.videoId)).toEqual(["3wXfppSKkpg"]);
@@ -151,7 +169,12 @@ describe("FeedWatcher", () => {
 
   it("retries a transient feed failure, then throws if it persists", async () => {
     const server = feedServer(FIXTURE);
-    const watcher = new FeedWatcher({ fetch: server.fetch, seen: new InMemorySeenStore(), clock: new FakeClock(NEWEST + HOUR), fetchRetry: { attempts: 2, baseMs: 1 } });
+    const watcher = new FeedWatcher({
+      fetch: server.fetch,
+      seen: new InMemorySeenStore(),
+      clock: new FakeClock(NEWEST + HOUR),
+      fetchRetry: { attempts: 2, baseMs: 1 },
+    });
     server.failNext(1);
     const r = await watcher.poll();
     expect(r.feedCount).toBe(15);
@@ -163,7 +186,11 @@ describe("FeedWatcher", () => {
 
   it("shares one in-flight poll between concurrent callers", async () => {
     const server = feedServer(FIXTURE);
-    const watcher = new FeedWatcher({ fetch: server.fetch, seen: new InMemorySeenStore(), clock: new FakeClock(NEWEST + HOUR) });
+    const watcher = new FeedWatcher({
+      fetch: server.fetch,
+      seen: new InMemorySeenStore(),
+      clock: new FakeClock(NEWEST + HOUR),
+    });
     const [a, b] = await Promise.all([watcher.poll(), watcher.poll()]);
     expect(a).toBe(b);
     expect(server.calls).toHaveLength(1);
@@ -171,7 +198,12 @@ describe("FeedWatcher", () => {
 
   it("start/stop drive polling and route errors to the error event", async () => {
     const server = feedServer(FIXTURE);
-    const watcher = new FeedWatcher({ fetch: server.fetch, seen: new InMemorySeenStore(), clock: new FakeClock(NEWEST + HOUR), fetchRetry: { attempts: 1 } });
+    const watcher = new FeedWatcher({
+      fetch: server.fetch,
+      seen: new InMemorySeenStore(),
+      clock: new FakeClock(NEWEST + HOUR),
+      fetchRetry: { attempts: 1 },
+    });
     server.failNext(1);
     const errors: unknown[] = [];
     const polls: number[] = [];

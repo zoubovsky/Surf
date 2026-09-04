@@ -49,7 +49,12 @@ export function ruleAlternation(prices: readonly number[]): RuleResult {
     const move = at(prices, i) - at(prices, i - 1);
     const expected = i % 2 === 1 ? dir : -dir;
     if (move === 0 || sgn(move) !== expected) {
-      return { rule, passed: false, evaluated: true, detail: `leg ${i} does not alternate (move ${fmt(move)})` };
+      return {
+        rule,
+        passed: false,
+        evaluated: true,
+        detail: `leg ${i} does not alternate (move ${fmt(move)})`,
+      };
     }
   }
   return { rule, passed: true, evaluated: true, detail: `${prices.length} pivots alternate` };
@@ -92,7 +97,10 @@ export function ruleWave3NotShortest(prices: readonly number[]): RuleResult {
  * Hard rule 3: wave 4 never enters wave 1's price territory. Overlap is permitted only when
  * `pattern === "diagonal"` (the wedge-shape rule then applies instead).
  */
-export function ruleWave4NoOverlap(prices: readonly number[], pattern: ImpulsePattern = "impulse"): RuleResult {
+export function ruleWave4NoOverlap(
+  prices: readonly number[],
+  pattern: ImpulsePattern = "impulse",
+): RuleResult {
   const rule = "W4 does not overlap W1";
   if (prices.length < 5) return notEvaluable(rule, 5, prices.length);
   const dir = structureDirection(prices);
@@ -143,7 +151,10 @@ export function ruleDiagonalWedge(prices: readonly number[], wedge: WedgeShape =
  * Run all hard rules for a 5-wave structure (or its known prefix, 2..6 pivots).
  * Rules that cannot be evaluated yet are reported with `evaluated: false` and count as passed.
  */
-export function checkImpulse(prices: readonly number[], opts: ImpulseRuleOptions = {}): RuleReport<ImpulsePattern> {
+export function checkImpulse(
+  prices: readonly number[],
+  opts: ImpulseRuleOptions = {},
+): RuleReport<ImpulsePattern> {
   const pattern = opts.pattern ?? "impulse";
   const rules: RuleResult[] = [
     ruleAlternation(prices),
@@ -207,7 +218,10 @@ export function ruleFlatB(prices: readonly number[]): RuleResult {
  * Run the hard rules for a 3-wave correction X→A→B(→C). The kind is classified from B's
  * retracement unless given.
  */
-export function checkCorrection(prices: readonly number[], kind?: CorrectionKind): RuleReport<CorrectionKind> {
+export function checkCorrection(
+  prices: readonly number[],
+  kind?: CorrectionKind,
+): RuleReport<CorrectionKind> {
   const k = kind ?? classifyCorrection(prices);
   const rules: RuleResult[] = [ruleAlternation(prices)];
   if (k === "zigzag") rules.push(ruleZigzagB(prices), ruleZigzagC(prices));

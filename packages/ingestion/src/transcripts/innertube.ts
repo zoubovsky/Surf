@@ -18,8 +18,15 @@ import { assertVideoId, buildTranscript, type Transcript, type TranscriptProvide
 
 export const WATCH_URL = "https://www.youtube.com/watch";
 export const INNERTUBE_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player";
-const DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
-const ANDROID_CLIENT = { clientName: "ANDROID", clientVersion: "20.10.38", androidSdkVersion: 30, hl: "en", gl: "US" };
+const DEFAULT_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
+const ANDROID_CLIENT = {
+  clientName: "ANDROID",
+  clientVersion: "20.10.38",
+  androidSdkVersion: 30,
+  hl: "en",
+  gl: "US",
+};
 
 export interface InnertubeOptions {
   fetch?: FetchLike;
@@ -45,15 +52,26 @@ const RawTrack = z
     languageCode: z.string(),
     kind: z.string().optional(),
     vssId: z.string().optional(),
-    name: z.object({ simpleText: z.string().optional(), runs: z.array(z.object({ text: z.string() })).optional() }).passthrough().optional(),
+    name: z
+      .object({ simpleText: z.string().optional(), runs: z.array(z.object({ text: z.string() })).optional() })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
 const PlayerResponse = z
   .object({
-    playabilityStatus: z.object({ status: z.string().optional(), reason: z.string().optional() }).passthrough().optional(),
+    playabilityStatus: z
+      .object({ status: z.string().optional(), reason: z.string().optional() })
+      .passthrough()
+      .optional(),
     captions: z
-      .object({ playerCaptionsTracklistRenderer: z.object({ captionTracks: z.array(z.unknown()).optional() }).passthrough().optional() })
+      .object({
+        playerCaptionsTracklistRenderer: z
+          .object({ captionTracks: z.array(z.unknown()).optional() })
+          .passthrough()
+          .optional(),
+      })
       .passthrough()
       .optional(),
   })
@@ -124,7 +142,11 @@ export function isGeneratedTrack(t: CaptionTrack): boolean {
 }
 
 /** Choose a track for `lang`: exact language match, manual preferred, then regional variants (en-US), then nothing. */
-export function selectCaptionTrack(tracks: CaptionTrack[], lang = "en", preferManual = true): CaptionTrack | null {
+export function selectCaptionTrack(
+  tracks: CaptionTrack[],
+  lang = "en",
+  preferManual = true,
+): CaptionTrack | null {
   const want = lang.toLowerCase();
   const rank = (t: CaptionTrack): number => {
     const code = t.languageCode.toLowerCase();
@@ -187,9 +209,14 @@ export class InnertubeProvider implements TranscriptProvider {
     }
     const status = player?.playabilityStatus?.status;
     const reason = player?.playabilityStatus?.reason ?? "";
-    if (status === "LOGIN_REQUIRED" && /bot/i.test(reason)) throw new TranscriptBlockedError(this.name, "bot-check");
+    if (status === "LOGIN_REQUIRED" && /bot/i.test(reason))
+      throw new TranscriptBlockedError(this.name, "bot-check");
     if (tracks.length === 0) {
-      if (!player) throw new TranscriptError("innertube: could not find ytInitialPlayerResponse", { provider: this.name, retryable: true });
+      if (!player)
+        throw new TranscriptError("innertube: could not find ytInitialPlayerResponse", {
+          provider: this.name,
+          retryable: true,
+        });
       return null; // no captions, or video private/removed/age-gated
     }
     const track = selectCaptionTrack(tracks, lang, this.preferManual);
@@ -199,12 +226,25 @@ export class InnertubeProvider implements TranscriptProvider {
     url.searchParams.set("fmt", "json3");
     const res = await this.get(url.toString(), { accept: "*/*" });
     const body = await res.text();
-    if (res.status === 429 || detectBlock(res.status, body)) throw new TranscriptBlockedError(this.name, "timedtext-blocked", { status: res.status });
-    if (!res.ok) throw new TranscriptError(`innertube: timedtext HTTP ${res.status}`, { provider: this.name, retryable: res.status >= 500, status: res.status });
+    if (res.status === 429 || detectBlock(res.status, body))
+      throw new TranscriptBlockedError(this.name, "timedtext-blocked", { status: res.status });
+    if (!res.ok)
+      throw new TranscriptError(`innertube: timedtext HTTP ${res.status}`, {
+        provider: this.name,
+        retryable: res.status >= 500,
+        status: res.status,
+      });
     if (!body.trim()) return null; // YouTube returns an empty body when the track is not ready yet
     const segments = parseTimedText(body);
     if (segments.length === 0) return null;
-    return buildTranscript({ videoId, language: track.languageCode, source: this.name, segments, fetchedAt: this.clock.now(), isGenerated: isGeneratedTrack(track) });
+    return buildTranscript({
+      videoId,
+      language: track.languageCode,
+      source: this.name,
+      segments,
+      fetchedAt: this.clock.now(),
+      isGenerated: isGeneratedTrack(track),
+    });
   }
 
   private async getWatchPage(videoId: string): Promise<string> {
@@ -213,7 +253,12 @@ export class InnertubeProvider implements TranscriptProvider {
     const html = await res.text();
     const blocked = detectBlock(res.status, html);
     if (blocked) throw new TranscriptBlockedError(this.name, blocked, { status: res.status });
-    if (!res.ok) throw new TranscriptError(`innertube: watch page HTTP ${res.status}`, { provider: this.name, retryable: res.status >= 500, status: res.status });
+    if (!res.ok)
+      throw new TranscriptError(`innertube: watch page HTTP ${res.status}`, {
+        provider: this.name,
+        retryable: res.status >= 500,
+        status: res.status,
+      });
     return html;
   }
 
@@ -221,12 +266,26 @@ export class InnertubeProvider implements TranscriptProvider {
     const url = `${INNERTUBE_PLAYER_URL}?key=${encodeURIComponent(apiKey)}&prettyPrint=false`;
     const res = await this.http(url, {
       method: "POST",
-      headers: { "content-type": "application/json", "user-agent": "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip", "accept-language": "en-US" },
-      body: JSON.stringify({ context: { client: ANDROID_CLIENT }, videoId, contentCheckOk: true, racyCheckOk: true }),
+      headers: {
+        "content-type": "application/json",
+        "user-agent": "com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip",
+        "accept-language": "en-US",
+      },
+      body: JSON.stringify({
+        context: { client: ANDROID_CLIENT },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      }),
     });
     const text = await res.text();
     if (res.status === 429) throw new TranscriptBlockedError(this.name, "http-429", { status: 429 });
-    if (!res.ok) throw new TranscriptError(`innertube: player API HTTP ${res.status}`, { provider: this.name, retryable: res.status >= 500, status: res.status });
+    if (!res.ok)
+      throw new TranscriptError(`innertube: player API HTTP ${res.status}`, {
+        provider: this.name,
+        retryable: res.status >= 500,
+        status: res.status,
+      });
     try {
       const parsed = PlayerResponse.safeParse(JSON.parse(text));
       return parsed.success ? parsed.data : null;
@@ -237,9 +296,17 @@ export class InnertubeProvider implements TranscriptProvider {
 
   private async get(url: string, headers: Record<string, string>): Promise<Response> {
     try {
-      return await this.http(url, { method: "GET", headers: { "user-agent": this.userAgent, "accept-language": "en-US,en;q=0.9", ...headers }, redirect: "follow" });
+      return await this.http(url, {
+        method: "GET",
+        headers: { "user-agent": this.userAgent, "accept-language": "en-US,en;q=0.9", ...headers },
+        redirect: "follow",
+      });
     } catch (err) {
-      throw new TranscriptError(`innertube: network error: ${(err as Error).message}`, { provider: this.name, retryable: true, cause: err });
+      throw new TranscriptError(`innertube: network error: ${(err as Error).message}`, {
+        provider: this.name,
+        retryable: true,
+        cause: err,
+      });
     }
   }
 }

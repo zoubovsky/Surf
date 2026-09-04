@@ -83,22 +83,33 @@ describe("atr", () => {
 });
 
 describe("rsiDivergence", () => {
-  const swing = (index: number, price: number, kind: "high" | "low"): Swing => ({ index, time: index, price, kind });
+  const swing = (index: number, price: number, kind: "high" | "low"): Swing => ({
+    index,
+    time: index,
+    price,
+    kind,
+  });
 
   it("detects bearish divergence: higher high, lower RSI", () => {
     const series = [null, 75, null, 65];
     expect(divergenceBetween(swing(1, 100, "high"), swing(3, 105, "high"), series)).toBe("bearish");
-    expect(rsiDivergence([swing(0, 90, "low"), swing(1, 100, "high"), swing(2, 95, "low"), swing(3, 105, "high")], series)).toBe(
-      "bearish",
-    );
+    expect(
+      rsiDivergence(
+        [swing(0, 90, "low"), swing(1, 100, "high"), swing(2, 95, "low"), swing(3, 105, "high")],
+        series,
+      ),
+    ).toBe("bearish");
   });
 
   it("detects bullish divergence: lower low, higher RSI", () => {
     const series = [25, null, 35, null];
     expect(divergenceBetween(swing(0, 100, "low"), swing(2, 95, "low"), series)).toBe("bullish");
-    expect(rsiDivergence([swing(0, 100, "low"), swing(1, 110, "high"), swing(2, 95, "low"), swing(3, 105, "high")], series)).toBe(
-      "bullish",
-    );
+    expect(
+      rsiDivergence(
+        [swing(0, 100, "low"), swing(1, 110, "high"), swing(2, 95, "low"), swing(3, 105, "high")],
+        series,
+      ),
+    ).toBe("bullish");
   });
 
   it("returns none without divergence, mismatched kinds or missing RSI", () => {

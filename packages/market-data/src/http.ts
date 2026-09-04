@@ -12,7 +12,9 @@ export class HttpError extends Error {
     readonly body: string,
     detail?: string,
   ) {
-    super(`HTTP ${status} from ${url}${detail ? `: ${detail}` : ""}${body ? ` — ${body.slice(0, 200)}` : ""}`);
+    super(
+      `HTTP ${status} from ${url}${detail ? `: ${detail}` : ""}${body ? ` — ${body.slice(0, 200)}` : ""}`,
+    );
   }
 }
 

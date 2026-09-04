@@ -49,7 +49,8 @@ const ENTITY_MAP: Record<string, string> = {
 export function decodeEntities(s: string): string {
   return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, body: string) => {
     if (body[0] === "#") {
-      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      const code =
+        body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
       return Number.isFinite(code) && code > 0 && code < 0x110000 ? String.fromCodePoint(code) : m;
     }
     return ENTITY_MAP[body.toLowerCase()] ?? m;
@@ -76,7 +77,11 @@ export interface BuildTranscriptInput {
 /** Normalise segments (decode entities, drop empties, sort by start) and derive `text`. */
 export function buildTranscript(input: BuildTranscriptInput): Transcript {
   const segments = input.segments
-    .map((s) => ({ start: s.start, duration: s.duration, text: decodeEntities(s.text).replace(/\s+/g, " ").trim() }))
+    .map((s) => ({
+      start: s.start,
+      duration: s.duration,
+      text: decodeEntities(s.text).replace(/\s+/g, " ").trim(),
+    }))
     .filter((s) => s.text.length > 0 && Number.isFinite(s.start) && s.start >= 0)
     .sort((a, b) => a.start - b.start);
   const t: Transcript = {

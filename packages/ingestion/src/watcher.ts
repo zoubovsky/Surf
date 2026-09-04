@@ -140,9 +140,10 @@ export class FeedWatcher {
   }
 
   private async pollOnce(): Promise<PollResult> {
-    const source = this.opts.channelId && !this.opts.playlistId
-      ? { channelId: this.opts.channelId }
-      : { playlistId: this.opts.playlistId ?? MCO_LONGFORM_PLAYLIST_ID };
+    const source =
+      this.opts.channelId && !this.opts.playlistId
+        ? { channelId: this.opts.channelId }
+        : { playlistId: this.opts.playlistId ?? MCO_LONGFORM_PLAYLIST_ID };
     const res = await retry(
       () =>
         fetchLongFormFeed({

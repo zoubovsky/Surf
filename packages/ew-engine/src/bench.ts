@@ -146,7 +146,8 @@ export function main(argv: string[] = process.argv.slice(2)): string {
   return json ? JSON.stringify(analysis, null, 2) : summarize(analysis);
 }
 
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   try {
     process.stdout.write(`${main()}\n`);

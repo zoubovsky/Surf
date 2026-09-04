@@ -1,4 +1,11 @@
-import { INTERVAL_MS, floorToInterval, systemClock, type Candle, type Clock, type Interval } from "@surf/core";
+import {
+  INTERVAL_MS,
+  floorToInterval,
+  systemClock,
+  type Candle,
+  type Clock,
+  type Interval,
+} from "@surf/core";
 import { aggregate, alignAndFill, type Gap } from "./aggregate.js";
 import { crossCheck, referencePrice, type CrossCheckResult } from "./crosscheck.js";
 import { Pacer, type RequestOptions } from "./http.js";
@@ -158,7 +165,10 @@ export class MarketDataService {
     const k = this.key(venue, interval);
     let s = this.series.get(k);
     if (!s) {
-      const cap = interval === "1h" ? this.maxLength : Math.ceil((this.maxLength * INTERVAL_MS["1h"]) / INTERVAL_MS[interval]) + 1;
+      const cap =
+        interval === "1h"
+          ? this.maxLength
+          : Math.ceil((this.maxLength * INTERVAL_MS["1h"]) / INTERVAL_MS[interval]) + 1;
       s = new CandleSeries(interval, { maxLength: cap });
       this.series.set(k, s);
     }
@@ -204,7 +214,10 @@ export class MarketDataService {
 
   /** External reference price for the risk engine: Coinbase latest closed 1h close, else Strike index. */
   referencePrice(): number | null {
-    return referencePrice(this.latestClosed("1h", COINBASE_VENUE)?.close ?? null, this.premium?.indexPrice ?? null);
+    return referencePrice(
+      this.latestClosed("1h", COINBASE_VENUE)?.close ?? null,
+      this.premium?.indexPrice ?? null,
+    );
   }
 
   /** Gaps detected in the 1h series of a venue at the last backfill/refresh. */
@@ -238,7 +251,8 @@ export class MarketDataService {
         priceType: this.priceType,
         from: strikeStart,
         to,
-        onPage: (page) => this.log.debug({ venue: STRIKE_VENUE, n: page.length, first: page[0]?.openTime }, "backfill page"),
+        onPage: (page) =>
+          this.log.debug({ venue: STRIKE_VENUE, n: page.length, first: page[0]?.openTime }, "backfill page"),
       });
       strikeFetched = candles.length;
       await this.ingest(STRIKE_VENUE, candles, now);
@@ -256,7 +270,8 @@ export class MarketDataService {
         from: coinbaseStart,
         to,
         pacer: this.coinbasePacer,
-        onPage: (page, w) => this.log.debug({ venue: COINBASE_VENUE, n: page.length, start: w.start }, "backfill page"),
+        onPage: (page, w) =>
+          this.log.debug({ venue: COINBASE_VENUE, n: page.length, start: w.start }, "backfill page"),
       });
       coinbaseFetched = candles.length;
       await this.ingest(COINBASE_VENUE, candles, now);
@@ -288,7 +303,10 @@ export class MarketDataService {
       const agg = await this.repo.range({ venue, symbol, interval: iv });
       if (agg.length) this.getSeries(venue, iv).upsert(agg);
     }
-    this.log.info({ venue, stored: stored.length, last: series.latest()?.openTime }, "resuming from repository");
+    this.log.info(
+      { venue, stored: stored.length, last: series.latest()?.openTime },
+      "resuming from repository",
+    );
     return series.latest()!.openTime + INTERVAL_MS["1h"];
   }
 
@@ -301,7 +319,8 @@ export class MarketDataService {
     const newCandles = { strike: 0, coinbase: 0 };
 
     const strikeSeries = this.getSeries(STRIKE_VENUE, "1h");
-    const strikeFrom = strikeSeries.latest()?.openTime ?? Math.max(this.strikeSince, floorToInterval(now, hour) - 48 * hour);
+    const strikeFrom =
+      strikeSeries.latest()?.openTime ?? Math.max(this.strikeSince, floorToInterval(now, hour) - 48 * hour);
     try {
       const candles = await fetchStrikeKlines({
         ...this.strikeReq,
@@ -357,7 +376,10 @@ export class MarketDataService {
     const aligned = alignAndFill(series.all(), "1h");
     this.gapsByKey.set(this.key(venue, "1h"), aligned.gaps);
     if (aligned.gaps.length) {
-      this.log.warn({ venue, gaps: aligned.gaps.length, missing: aligned.gaps.reduce((s, g) => s + g.missing, 0) }, "gaps in 1h series");
+      this.log.warn(
+        { venue, gaps: aligned.gaps.length, missing: aligned.gaps.reduce((s, g) => s + g.missing, 0) },
+        "gaps in 1h series",
+      );
     }
 
     const touched: Candle[] = [];
@@ -379,7 +401,11 @@ export class MarketDataService {
   private async refreshStats(): Promise<SourceError[]> {
     const errors: SourceError[] = [];
     const results = await Promise.allSettled([
-      fetchStrikeFundingHistory({ ...this.strikeReq, symbol: this.symbol, ...(this.fundingDays !== undefined ? { days: this.fundingDays } : {}) }),
+      fetchStrikeFundingHistory({
+        ...this.strikeReq,
+        symbol: this.symbol,
+        ...(this.fundingDays !== undefined ? { days: this.fundingDays } : {}),
+      }),
       fetchStrikeOpenInterestHistory({ ...this.strikeReq, symbol: this.symbol, interval: this.oiInterval }),
       fetchStrikePremiumIndex({ ...this.strikeReq, symbol: this.symbol }),
     ]);

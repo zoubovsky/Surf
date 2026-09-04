@@ -73,7 +73,10 @@ export async function research(deps: StageDeps, input: ResearchInput): Promise<R
     system: systemBlocks(SYSTEM_RESEARCH_COERCE),
     messages: [buildResearchCoerceUserMessage(runner.finalText, input.market.asOf)],
     ...(coerceReasoning.thinking ? { thinking: coerceReasoning.thinking } : {}),
-    output_config: { ...(coerceReasoning.effort ? { effort: coerceReasoning.effort } : {}), format: lenientFormat(MarketContext) },
+    output_config: {
+      ...(coerceReasoning.effort ? { effort: coerceReasoning.effort } : {}),
+      format: lenientFormat(MarketContext),
+    },
   });
 
   let context: MarketContext;

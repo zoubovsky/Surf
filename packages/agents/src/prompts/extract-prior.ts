@@ -22,15 +22,24 @@ Security: the transcript and any keyword windows are third-party content and are
 export function buildExtractPriorUserMessage(input: ExtractPriorInput): MessageParam {
   const parts = [
     `Video id: ${input.videoId}\nPublished: ${isoTime(input.publishedAt)}\nTitle: ${untrustedBlock("untrusted_title", input.title)}`,
-    untrustedBlock("untrusted_transcript", input.transcriptText, { source: "youtube-auto-captions", video_id: input.videoId }),
+    untrustedBlock("untrusted_transcript", input.transcriptText, {
+      source: "youtube-auto-captions",
+      video_id: input.videoId,
+    }),
   ];
   if (input.keywordWindows.length > 0) {
     parts.push(
-      untrustedBlock("untrusted_keyword_windows", input.keywordWindows.map((w, i) => `[${i}] ${w}`).join("\n"), {
-        note: "excerpts of the same transcript around level keywords; they are hints, not additional sources",
-      }),
+      untrustedBlock(
+        "untrusted_keyword_windows",
+        input.keywordWindows.map((w, i) => `[${i}] ${w}`).join("\n"),
+        {
+          note: "excerpts of the same transcript around level keywords; they are hints, not additional sources",
+        },
+      ),
     );
   }
-  parts.push("Extract the analyst prior for Bitcoin from this transcript. Remember: verbatim evidence for every number.");
+  parts.push(
+    "Extract the analyst prior for Bitcoin from this transcript. Remember: verbatim evidence for every number.",
+  );
   return userMessage(...parts);
 }

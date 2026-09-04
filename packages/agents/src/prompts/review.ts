@@ -51,7 +51,12 @@ export interface ReviewInput {
   market: MarketSnapshot;
   state: TradingState;
   limits: RiskLimits;
-  openPosition?: { direction: "long" | "short"; entryPrice: number; stopLoss: number; takeProfit: number } | null;
+  openPosition?: {
+    direction: "long" | "short";
+    entryPrice: number;
+    stopLoss: number;
+    takeProfit: number;
+  } | null;
   priorMaxAgeHours?: number;
 }
 
@@ -83,7 +88,11 @@ export function buildReviewUserMessage(input: ReviewInput, prechecks: ReviewPrec
     `Decision time (UTC): ${isoTime(now)}. Prior max age: ${maxAge}h.`,
     dataBlock("trade_plan", input.plan),
     dataBlock("ew_candidates", candidates),
-    dataBlock("momentum", { h1: input.ew.h1.momentum, h4: input.ew.h4.momentum, lastClose1h: input.ew.h1.lastClose }),
+    dataBlock("momentum", {
+      h1: input.ew.h1.momentum,
+      h4: input.ew.h4.momentum,
+      lastClose1h: input.ew.h1.lastClose,
+    }),
     dataBlock(
       "analyst_prior",
       input.prior

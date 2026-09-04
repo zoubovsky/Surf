@@ -22,7 +22,12 @@ export function isBitcoinTitle(title: string): boolean {
  * the UULF playlist already excludes Shorts, so absence of data is not evidence.
  */
 export function isShortLike(durationSec?: number | null): boolean {
-  return typeof durationSec === "number" && Number.isFinite(durationSec) && durationSec > 0 && durationSec <= SHORT_MAX_SEC;
+  return (
+    typeof durationSec === "number" &&
+    Number.isFinite(durationSec) &&
+    durationSec > 0 &&
+    durationSec <= SHORT_MAX_SEC
+  );
 }
 
 export interface TitleClass {

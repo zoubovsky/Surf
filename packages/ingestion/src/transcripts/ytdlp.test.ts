@@ -31,13 +31,28 @@ describe("YtDlpProvider", () => {
       await writeFile(join(opts.cwd, "3wXfppSKkpg.en-orig.json3"), JSON3);
       return { stdout: "[info] Writing video subtitles", stderr: "", code: 0 };
     };
-    const p = new YtDlpProvider({ which: async () => "/usr/local/bin/yt-dlp", exec, tmpDir: tmpdir(), clock: { now: () => 7 } });
+    const p = new YtDlpProvider({
+      which: async () => "/usr/local/bin/yt-dlp",
+      exec,
+      tmpDir: tmpdir(),
+      clock: { now: () => 7 },
+    });
     const t = await p.fetch("3wXfppSKkpg");
     expect(t).toMatchObject({ videoId: "3wXfppSKkpg", language: "en", source: "yt-dlp", fetchedAt: 7 });
     expect(t!.segments).toHaveLength(5);
     const s = seen!;
     expect(s.file).toBe("/usr/local/bin/yt-dlp");
-    expect(s.args).toEqual(expect.arrayContaining(["--skip-download", "--write-auto-subs", "--sub-langs", "en.*,en", "--sub-format", "json3", "-o"]));
+    expect(s.args).toEqual(
+      expect.arrayContaining([
+        "--skip-download",
+        "--write-auto-subs",
+        "--sub-langs",
+        "en.*,en",
+        "--sub-format",
+        "json3",
+        "-o",
+      ]),
+    );
     expect(s.args[s.args.length - 1]).toBe("https://www.youtube.com/watch?v=3wXfppSKkpg");
     expect(s.args[s.args.indexOf("-o") + 1]).toMatch(/%\(id\)s$/);
   });
@@ -45,17 +60,30 @@ describe("YtDlpProvider", () => {
   it("classifies bot checks as blocked and missing subtitles as null", async () => {
     const botCheck = new YtDlpProvider({
       which: async () => "yt-dlp",
-      exec: async () => ({ stdout: "", stderr: "ERROR: [youtube] 3wXfppSKkpg: Sign in to confirm you’re not a bot.", code: 1 }),
+      exec: async () => ({
+        stdout: "",
+        stderr: "ERROR: [youtube] 3wXfppSKkpg: Sign in to confirm you’re not a bot.",
+        code: 1,
+      }),
     });
     await expect(botCheck.fetch("3wXfppSKkpg")).rejects.toBeInstanceOf(TranscriptBlockedError);
 
-    const noSubs = new YtDlpProvider({ which: async () => "yt-dlp", exec: async () => ({ stdout: "", stderr: "", code: 0 }) });
+    const noSubs = new YtDlpProvider({
+      which: async () => "yt-dlp",
+      exec: async () => ({ stdout: "", stderr: "", code: 0 }),
+    });
     expect(await noSubs.fetch("3wXfppSKkpg")).toBeNull();
 
-    const gone = new YtDlpProvider({ which: async () => "yt-dlp", exec: async () => ({ stdout: "", stderr: "ERROR: Private video", code: 1 }) });
+    const gone = new YtDlpProvider({
+      which: async () => "yt-dlp",
+      exec: async () => ({ stdout: "", stderr: "ERROR: Private video", code: 1 }),
+    });
     expect(await gone.fetch("3wXfppSKkpg")).toBeNull();
 
-    const other = new YtDlpProvider({ which: async () => "yt-dlp", exec: async () => ({ stdout: "", stderr: "ERROR: Unable to download webpage", code: 1 }) });
+    const other = new YtDlpProvider({
+      which: async () => "yt-dlp",
+      exec: async () => ({ stdout: "", stderr: "ERROR: Unable to download webpage", code: 1 }),
+    });
     const e = (await other.fetch("3wXfppSKkpg").catch((e: unknown) => e)) as TranscriptError;
     expect(e).toBeInstanceOf(TranscriptError);
     expect(e.retryable).toBe(true);

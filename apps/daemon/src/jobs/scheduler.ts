@@ -31,28 +31,47 @@ export function startSchedules(opts: ScheduleOptions): { stop: () => void } {
     // Hourly decision loop, one minute after the candle close, UTC.
     new Cron("1 * * * *", { timezone: "UTC" }, () => {
       const id = hourlyCycleId(now());
-      const enq = runner.enqueue("hourly-cycle", { singletonKey: id, payload: { cycleId: id }, maxAttempts: 2 });
+      const enq = runner.enqueue("hourly-cycle", {
+        singletonKey: id,
+        payload: { cycleId: id },
+        maxAttempts: 2,
+      });
       log.info({ cycle: id, enqueued: enq !== null }, "hourly cycle scheduled");
     }),
     // Video feed poll every 5 minutes.
     new Cron("*/5 * * * *", { timezone: "UTC" }, () => {
-      runner.enqueue("feed-poll", { singletonKey: `feed-poll-${floorToInterval(now(), 300_000)}`, maxAttempts: 1 });
+      runner.enqueue("feed-poll", {
+        singletonKey: `feed-poll-${floorToInterval(now(), 300_000)}`,
+        maxAttempts: 1,
+      });
     }),
     // Market data refresh two minutes past the hour (after the decision loop has been queued; runner is sequential).
     new Cron("*/15 * * * *", { timezone: "UTC" }, () => {
-      runner.enqueue("market-refresh", { singletonKey: `market-refresh-${floorToInterval(now(), 900_000)}`, maxAttempts: 2 });
+      runner.enqueue("market-refresh", {
+        singletonKey: `market-refresh-${floorToInterval(now(), 900_000)}`,
+        maxAttempts: 2,
+      });
     }),
     // Position monitor safety net every minute (the WebSocket path is primary).
     new Cron("* * * * *", { timezone: "UTC" }, () => {
-      runner.enqueue("monitor-tick", { singletonKey: `monitor-${floorToInterval(now(), 60_000)}`, maxAttempts: 1 });
+      runner.enqueue("monitor-tick", {
+        singletonKey: `monitor-${floorToInterval(now(), 60_000)}`,
+        maxAttempts: 1,
+      });
     }),
     // Daily brief in the operator's zone.
     new Cron(`${bm} ${bh} * * *`, { timezone: tz }, () => {
-      runner.enqueue("daily-brief", { singletonKey: `daily-brief-${new Date(now()).toISOString().slice(0, 10)}`, maxAttempts: 2 });
+      runner.enqueue("daily-brief", {
+        singletonKey: `daily-brief-${new Date(now()).toISOString().slice(0, 10)}`,
+        maxAttempts: 2,
+      });
     }),
     // Weekly calibration, Sunday 03:00 in operator zone.
     new Cron("0 3 * * 0", { timezone: tz }, () => {
-      runner.enqueue("calibration", { singletonKey: `calibration-${new Date(now()).toISOString().slice(0, 10)}`, maxAttempts: 1 });
+      runner.enqueue("calibration", {
+        singletonKey: `calibration-${new Date(now()).toISOString().slice(0, 10)}`,
+        maxAttempts: 1,
+      });
     }),
     // Housekeeping: prune old jobs daily.
     new Cron("30 4 * * *", { timezone: "UTC" }, () => {

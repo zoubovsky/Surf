@@ -95,7 +95,12 @@ describe("checkImpulse", () => {
     const r = checkImpulse(TEXTBOOK);
     expect(r.passed).toBe(true);
     expect(r.pattern).toBe("impulse");
-    expect(r.rules.map((x) => x.rule)).toEqual(["alternation", "W2 ≤ 100% of W1", "W3 not shortest", "W4 does not overlap W1"]);
+    expect(r.rules.map((x) => x.rule)).toEqual([
+      "alternation",
+      "W2 ≤ 100% of W1",
+      "W3 not shortest",
+      "W4 does not overlap W1",
+    ]);
     expect(r.rules.every((x) => x.evaluated)).toBe(true);
   });
   it("fails an impulse with overlap but passes it as a contracting diagonal", () => {

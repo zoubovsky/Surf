@@ -7,12 +7,19 @@ No LLM calls live here. Everything this package returns (titles, descriptions, t
 ## Feed detection
 
 ```ts
-import { FeedWatcher, InMemorySeenStore, fetchLongFormFeed, isBitcoinTitle, classifyTitle, isShortLike } from "@surf/ingestion";
+import {
+  FeedWatcher,
+  InMemorySeenStore,
+  fetchLongFormFeed,
+  isBitcoinTitle,
+  classifyTitle,
+  isShortLike,
+} from "@surf/ingestion";
 
 const watcher = new FeedWatcher({ fetch, seen: sqliteSeenStore, clock, logger, lookbackMs: 24 * 3600_000 });
-watcher.on("video", (v) => enqueueTranscriptJob(v));   // v: FeedVideo { videoId, title, publishedAt, updatedAt, url, channelId, description }
+watcher.on("video", (v) => enqueueTranscriptJob(v)); // v: FeedVideo { videoId, title, publishedAt, updatedAt, url, channelId, description }
 watcher.on("error", (err) => log.error(err));
-watcher.start(5 * 60_000);                             // or call `await watcher.poll()` from your own scheduler
+watcher.start(5 * 60_000); // or call `await watcher.poll()` from your own scheduler
 ```
 
 - Source: `https://www.youtube.com/feeds/videos.xml?playlist_id=UULFngIhBkikUe6e7tZTjpKK7Q` (long-form only, no Shorts, no
@@ -28,15 +35,22 @@ watcher.start(5 * 60_000);                             // or call `await watcher
 ## Transcripts
 
 ```ts
-import { TranscriptChain, supadataFromEnv, InnertubeProvider, YtDlpProvider, cleanTranscript, windowByKeyword } from "@surf/ingestion";
+import {
+  TranscriptChain,
+  supadataFromEnv,
+  InnertubeProvider,
+  YtDlpProvider,
+  cleanTranscript,
+  windowByKeyword,
+} from "@surf/ingestion";
 
 const providers = [supadataFromEnv(), new InnertubeProvider(), new YtDlpProvider()].filter((p) => p !== null);
 const chain = new TranscriptChain(providers, { clock, logger });
-const r = await chain.fetchWithRetry(videoId, { deadlineMs: 6 * 3600_000 });   // waits T+10min, retries 20/40/80/160 min
+const r = await chain.fetchWithRetry(videoId, { deadlineMs: 6 * 3600_000 }); // waits T+10min, retries 20/40/80/160 min
 // r.status: "ok" (r.transcript) | "pending" (reschedule after r.nextRetryMs) | "blocked" (every provider blocked/fatal — alert)
 // r.attempts: per-provider { provider, outcome: ok|none|blocked|rate-limited|fatal|error, at, durationMs, error? }
-const clean = cleanTranscript(r.transcript);       // strips [Music], fixes BTC/ETH casing, "79 k" -> "79K"
-const evidence = windowByKeyword(clean);           // compact passages mentioning prices / support / invalidation / wave ...
+const clean = cleanTranscript(r.transcript); // strips [Music], fixes BTC/ETH casing, "79 k" -> "79K"
+const evidence = windowByKeyword(clean); // compact passages mentioning prices / support / invalidation / wave ...
 ```
 
 Providers implement `TranscriptProvider { name; fetch(videoId, lang="en"): Promise<Transcript | null> }`. `null` means "no transcript for
@@ -45,10 +59,10 @@ problems. `Transcript = { videoId, language, source, segments: {start, duration,
 `chain.fetch()` is the single-pass variant if the daemon runs its own retry scheduler; `fetchWithRetry` uses the injected `sleep`, so it is
 safe to run inside a long-lived job (pass `immediate: true` when the daemon has already waited).
 
-| Provider | Env / requirement | Notes |
-|---|---|---|
-| `SupadataProvider` (primary) | **`SUPADATA_API_KEY`** (`supadataFromEnv()` returns `null` without it) | `GET api.supadata.ai/v1/youtube/transcript?videoId=&lang=en&text=false`, header `x-api-key`. Free plan 100 credits/month at 1 req/s; 1 credit per transcript, **206 "transcript-unavailable" also costs 1 credit**; 202+`jobId` is polled at `/v1/transcript/{jobId}`. `provider.stats.credits` tracks the `x-billable-requests` header. |
-| `InnertubeProvider` (fallback) | none | Direct watch-page + timedtext scrape. **Blocked from datacenter IPs** (verified 2026-09-04: HTTP 429 reCAPTCHA / `LOGIN_REQUIRED` bot check) — works from residential IPs. |
-| `YtDlpProvider` (last resort) | `yt-dlp` on `PATH` (returns `null` otherwise); pass `extraArgs` for `--proxy`/PO-token plugin | `--skip-download --write-auto-subs --sub-langs en.*,en --sub-format json3`. |
+| Provider                       | Env / requirement                                                                             | Notes                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SupadataProvider` (primary)   | **`SUPADATA_API_KEY`** (`supadataFromEnv()` returns `null` without it)                        | `GET api.supadata.ai/v1/youtube/transcript?videoId=&lang=en&text=false`, header `x-api-key`. Free plan 100 credits/month at 1 req/s; 1 credit per transcript, **206 "transcript-unavailable" also costs 1 credit**; 202+`jobId` is polled at `/v1/transcript/{jobId}`. `provider.stats.credits` tracks the `x-billable-requests` header. |
+| `InnertubeProvider` (fallback) | none                                                                                          | Direct watch-page + timedtext scrape. **Blocked from datacenter IPs** (verified 2026-09-04: HTTP 429 reCAPTCHA / `LOGIN_REQUIRED` bot check) — works from residential IPs.                                                                                                                                                               |
+| `YtDlpProvider` (last resort)  | `yt-dlp` on `PATH` (returns `null` otherwise); pass `extraArgs` for `--proxy`/PO-token plugin | `--skip-download --write-auto-subs --sub-langs en.*,en --sub-format json3`.                                                                                                                                                                                                                                                              |
 
 Live check of the direct path: `TRANSCRIPT_LIVE_TESTS=1 pnpm exec vitest run packages/ingestion` (skipped by default).

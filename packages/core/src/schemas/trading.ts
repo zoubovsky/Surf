@@ -8,13 +8,15 @@ export const MarketContext = z.object({
   fundingRateHourly: z.number(),
   fundingAssessment: z.enum(["neutral", "longs-crowded", "shorts-crowded"]),
   openInterestTrend: z.enum(["rising", "falling", "flat", "unknown"]),
-  eventRisk: z.array(
-    z.object({
-      when: z.number().int(),
-      description: z.string().max(200),
-      severity: z.enum(["low", "medium", "high"]),
-    }),
-  ).max(10),
+  eventRisk: z
+    .array(
+      z.object({
+        when: z.number().int(),
+        description: z.string().max(200),
+        severity: z.enum(["low", "medium", "high"]),
+      }),
+    )
+    .max(10),
   headlines: z.array(z.string().max(200)).max(8),
   brief: z.string().max(1500),
 });
@@ -37,7 +39,11 @@ export const TradePlan = z.object({
   takeProfit: PriceLevel.nullable(),
   /** New stop when action = adjust-stop. */
   newStop: PriceLevel.nullable(),
-  expectedHoldHours: z.number().positive().max(24 * 14).nullable(),
+  expectedHoldHours: z
+    .number()
+    .positive()
+    .max(24 * 14)
+    .nullable(),
   confidence: Confidence,
   /** Every claim must cite an evidence id: candidate id, video id, indicator name, or headline index. */
   evidence: z.array(z.string().max(200)).max(20),
@@ -132,7 +138,10 @@ export const RiskLimits = z.object({
   minRewardRisk: z.number().positive().default(2),
   maxStopDistancePct: z.number().positive().default(6),
   minStopDistancePct: z.number().positive().default(0.3),
-  maxCandleAgeMs: z.number().positive().default(2 * 3_600_000),
+  maxCandleAgeMs: z
+    .number()
+    .positive()
+    .default(2 * 3_600_000),
   maxReferenceDeviationPct: z.number().positive().default(1),
   maxConsecutiveStopOuts: z.number().int().positive().default(3),
   haltCooldownHours: z.number().positive().default(24),

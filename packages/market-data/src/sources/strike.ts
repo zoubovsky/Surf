@@ -66,7 +66,12 @@ export async function backfillStrikeKlines(p: StrikeBackfillParams): Promise<Can
   const maxPages = p.maxPages ?? 1000;
   while (cursor <= p.to && pages < maxPages) {
     if (p.pacer) await p.pacer.wait();
-    const page = await fetchStrikeKlines({ ...p, startTime: cursor, endTime: p.to, limit: STRIKE_KLINES_MAX_LIMIT });
+    const page = await fetchStrikeKlines({
+      ...p,
+      startTime: cursor,
+      endTime: p.to,
+      limit: STRIKE_KLINES_MAX_LIMIT,
+    });
     pages++;
     if (page.length === 0) break;
     out.push(...page);
@@ -138,7 +143,9 @@ export interface StrikeFundingHistoryParams extends RequestOptions {
 }
 
 /** GET /stat/v1/stats/coin/history/funding?symbol=BTC-USD[&days=30] */
-export async function fetchStrikeFundingHistory(p: StrikeFundingHistoryParams): Promise<StrikeFundingHistory> {
+export async function fetchStrikeFundingHistory(
+  p: StrikeFundingHistoryParams,
+): Promise<StrikeFundingHistory> {
   const url = buildUrl(p.baseUrl ?? STRIKE_API_BASE, "stat/v1/stats/coin/history/funding", {
     symbol: p.symbol,
     days: p.days,
@@ -181,7 +188,9 @@ export interface StrikeOpenInterestParams extends RequestOptions {
 }
 
 /** GET /stat/v1/stats/coin/history/open-interest?symbol=BTC-USD[&interval=1h] */
-export async function fetchStrikeOpenInterestHistory(p: StrikeOpenInterestParams): Promise<StrikeOpenInterestHistory> {
+export async function fetchStrikeOpenInterestHistory(
+  p: StrikeOpenInterestParams,
+): Promise<StrikeOpenInterestHistory> {
   const url = buildUrl(p.baseUrl ?? STRIKE_API_BASE, "stat/v1/stats/coin/history/open-interest", {
     symbol: p.symbol,
     interval: p.interval,

@@ -47,10 +47,28 @@ describe("sizing", () => {
 
   it("rejects a stop on the wrong side and tiny notionals", () => {
     expect(
-      sizePosition({ equity: 1_000, riskPct: 1, entryPrice: 80_000, stopLoss: 81_000, direction: "long", maxLeverage: 5, sizeStep: 0.00001, minNotionalUsd: 10 }),
+      sizePosition({
+        equity: 1_000,
+        riskPct: 1,
+        entryPrice: 80_000,
+        stopLoss: 81_000,
+        direction: "long",
+        maxLeverage: 5,
+        sizeStep: 0.00001,
+        minNotionalUsd: 10,
+      }),
     ).toHaveProperty("error");
     expect(
-      sizePosition({ equity: 5, riskPct: 1, entryPrice: 80_000, stopLoss: 70_000, direction: "long", maxLeverage: 5, sizeStep: 0.00001, minNotionalUsd: 10 }),
+      sizePosition({
+        equity: 5,
+        riskPct: 1,
+        entryPrice: 80_000,
+        stopLoss: 70_000,
+        direction: "long",
+        maxLeverage: 5,
+        sizeStep: 0.00001,
+        minNotionalUsd: 10,
+      }),
     ).toHaveProperty("error");
   });
 

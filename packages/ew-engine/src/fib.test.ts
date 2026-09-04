@@ -28,7 +28,11 @@ describe("fib helpers", () => {
     const e = extensionZone(100, 10, 1, 1.618, -1, "c");
     expect(e.low).toBeCloseTo(83.82);
     expect(e.high).toBeCloseTo(90);
-    expect(waveLengths([100, 110, 103.82, 120])).toEqual([10, expect.closeTo(6.18, 9), expect.closeTo(16.18, 9)]);
+    expect(waveLengths([100, 110, 103.82, 120])).toEqual([
+      10,
+      expect.closeTo(6.18, 9),
+      expect.closeTo(16.18, 9),
+    ]);
   });
 });
 
@@ -96,7 +100,9 @@ describe("scoreImpulseGuidelines", () => {
     const altA = alternating.results.find((r) => r.name === "Alternation");
     const altB = same.results.find((r) => r.name === "Alternation");
     expect(altA?.score ?? 0).toBeGreaterThan(altB?.score ?? 1);
-    const ext = scoreImpulseGuidelines([100, 110, 105, 115, 111, 121]).results.find((r) => r.name === "Extension");
+    const ext = scoreImpulseGuidelines([100, 110, 105, 115, 111, 121]).results.find(
+      (r) => r.name === "Extension",
+    );
     expect(ext?.score).toBe(0); // 10, 10, 10 → nothing extended
     const ext2 = scoreImpulseGuidelines(textbook).results.find((r) => r.name === "Extension");
     expect(ext2?.score).toBe(1);

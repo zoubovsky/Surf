@@ -13,7 +13,12 @@ export function floorToInterval(ts: number, intervalMs: number): number {
 /** Retry an async function with exponential backoff. */
 export async function retry<T>(
   fn: (attempt: number) => Promise<T>,
-  opts: { attempts?: number; baseMs?: number; maxMs?: number; onError?: (err: unknown, attempt: number) => void } = {},
+  opts: {
+    attempts?: number;
+    baseMs?: number;
+    maxMs?: number;
+    onError?: (err: unknown, attempt: number) => void;
+  } = {},
 ): Promise<T> {
   const attempts = opts.attempts ?? 4;
   const base = opts.baseMs ?? 500;

@@ -42,7 +42,9 @@ export function numberForms(price: number): string[] {
 
 export function numberAppearsIn(price: number, text: string): boolean {
   const hay = normalizeText(text);
-  return numberForms(price).some((src) => new RegExp(`(?<![\\d.,])${src}(?![\\d]|[.,]\\d)(?![a-z])`, "i").test(hay));
+  return numberForms(price).some((src) =>
+    new RegExp(`(?<![\\d.,])${src}(?![\\d]|[.,]\\d)(?![a-z])`, "i").test(hay),
+  );
 }
 
 export function evidenceAppearsIn(evidence: string, transcript: string): boolean {
@@ -59,11 +61,17 @@ function lowerConfidence(c: Confidence): Confidence {
  * and every numeric level must occur in some surviving span. Unsupported levels are dropped and
  * confidence is lowered one bucket if anything was dropped. Pure; never calls a model.
  */
-export function verifyEvidence(prior: AnalystPrior, transcriptText: string): { prior: AnalystPrior; report: EvidenceReport } {
+export function verifyEvidence(
+  prior: AnalystPrior,
+  transcriptText: string,
+): { prior: AnalystPrior; report: EvidenceReport } {
   const keptEvidence = prior.evidence.filter((e) => evidenceAppearsIn(e, transcriptText));
   const evidenceDropped = prior.evidence.filter((e) => !keptEvidence.includes(e));
   if (keptEvidence.length === 0) {
-    throw new UnsupportedPriorError(prior.videoId, `${prior.evidence.length} evidence span(s), none found in transcript`);
+    throw new UnsupportedPriorError(
+      prior.videoId,
+      `${prior.evidence.length} evidence span(s), none found in transcript`,
+    );
   }
   const evidenceText = keptEvidence.join("\n");
   const levelsDropped: EvidenceReport["levelsDropped"] = [];
@@ -82,7 +90,11 @@ export function verifyEvidence(prior: AnalystPrior, transcriptText: string): { p
     const lowOk = numberAppearsIn(entryZone.low, evidenceText);
     const highOk = numberAppearsIn(entryZone.high, evidenceText);
     if (!lowOk || !highOk) {
-      levelsDropped.push({ field: "entryZone", price: lowOk ? entryZone.high : entryZone.low, label: entryZone.label });
+      levelsDropped.push({
+        field: "entryZone",
+        price: lowOk ? entryZone.high : entryZone.low,
+        label: entryZone.label,
+      });
       entryZone = null;
     }
   }
@@ -100,6 +112,11 @@ export function verifyEvidence(prior: AnalystPrior, transcriptText: string): { p
   };
   return {
     prior: verified,
-    report: { evidenceChecked: prior.evidence.length, evidenceDropped, levelsDropped, confidenceLowered: dropped },
+    report: {
+      evidenceChecked: prior.evidence.length,
+      evidenceDropped,
+      levelsDropped,
+      confidenceLowered: dropped,
+    },
   };
 }

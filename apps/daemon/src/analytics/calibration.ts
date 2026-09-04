@@ -31,16 +31,28 @@ function stats(rows: ClosedTradeLite[], impliedP?: number): BucketStats {
   if (n === 0) return { n: 0, winRate: 0, avgR: 0, expectancyR: 0, brier: null };
   const wins = rows.filter((r) => r.outcome === "win").length;
   const avgR = rows.reduce((s, r) => s + r.realizedR, 0) / n;
-  const brier = impliedP === undefined ? null : rows.reduce((s, r) => s + (impliedP - (r.outcome === "win" ? 1 : 0)) ** 2, 0) / n;
+  const brier =
+    impliedP === undefined
+      ? null
+      : rows.reduce((s, r) => s + (impliedP - (r.outcome === "win" ? 1 : 0)) ** 2, 0) / n;
   return { n, winRate: wins / n, avgR, expectancyR: avgR, brier };
 }
 
 /** Calibration ledger from closed trades. Feeds the analyst as a compact table. */
 export function summarizeCalibration(rows: ClosedTradeLite[]): CalibrationSummary {
   const byConfidence = {
-    low: stats(rows.filter((r) => r.confidence === "low"), IMPLIED_P.low),
-    medium: stats(rows.filter((r) => r.confidence === "medium"), IMPLIED_P.medium),
-    high: stats(rows.filter((r) => r.confidence === "high"), IMPLIED_P.high),
+    low: stats(
+      rows.filter((r) => r.confidence === "low"),
+      IMPLIED_P.low,
+    ),
+    medium: stats(
+      rows.filter((r) => r.confidence === "medium"),
+      IMPLIED_P.medium,
+    ),
+    high: stats(
+      rows.filter((r) => r.confidence === "high"),
+      IMPLIED_P.high,
+    ),
   };
   const bySetup: Record<string, BucketStats> = {};
   for (const setup of new Set(rows.map((r) => r.setup ?? "unknown"))) {

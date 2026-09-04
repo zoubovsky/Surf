@@ -1,7 +1,11 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { reasoningFor } from "../models.js";
-import { buildDailyBriefUserMessage, DAILY_BRIEF_MAX_CHARS, SYSTEM_DAILY_BRIEF } from "../prompts/daily-brief.js";
+import {
+  buildDailyBriefUserMessage,
+  DAILY_BRIEF_MAX_CHARS,
+  SYSTEM_DAILY_BRIEF,
+} from "../prompts/daily-brief.js";
 import { clip, systemBlocks } from "../prompts/shared.js";
 import { runParse, type StageResult } from "../stage.js";
 import { DailyBriefInput } from "../types.js";
@@ -20,7 +24,10 @@ export async function dailyBrief(deps: StageDeps, rawInput: DailyBriefInput): Pr
     system: systemBlocks(SYSTEM_DAILY_BRIEF),
     messages: [buildDailyBriefUserMessage(input)],
     ...(reasoning.thinking ? { thinking: reasoning.thinking } : {}),
-    output_config: { ...(reasoning.effort ? { effort: reasoning.effort } : {}), format: zodOutputFormat(BriefOut) },
+    output_config: {
+      ...(reasoning.effort ? { effort: reasoning.effort } : {}),
+      format: zodOutputFormat(BriefOut),
+    },
   });
   return { ...run, output: clip(run.output.brief.trim(), DAILY_BRIEF_MAX_CHARS) };
 }

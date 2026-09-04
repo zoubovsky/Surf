@@ -1,5 +1,16 @@
-import type { MessageCountTokensParams, RefusalStopDetails, StopReason } from "@anthropic-ai/sdk/resources/messages";
-import type { LlmClient, LlmMessage, LlmParsed, LlmParseParams, LlmToolRunner, LlmToolRunnerParams } from "../client.js";
+import type {
+  MessageCountTokensParams,
+  RefusalStopDetails,
+  StopReason,
+} from "@anthropic-ai/sdk/resources/messages";
+import type {
+  LlmClient,
+  LlmMessage,
+  LlmParsed,
+  LlmParseParams,
+  LlmToolRunner,
+  LlmToolRunnerParams,
+} from "../client.js";
 import { SYSTEM_ANALYZE } from "../prompts/analyze.js";
 import { SYSTEM_ANSWER } from "../prompts/answer.js";
 import { SYSTEM_DAILY_BRIEF } from "../prompts/daily-brief.js";
@@ -40,9 +51,15 @@ function isFakeResponse(x: unknown): x is FakeParseResponse {
 }
 
 export type FakeParseHandler = (params: LlmParseParams<unknown>, index: number) => unknown | Promise<unknown>;
-export type FakeRunnerHandler = (params: LlmToolRunnerParams, index: number) => LlmMessage[] | Promise<LlmMessage[]>;
+export type FakeRunnerHandler = (
+  params: LlmToolRunnerParams,
+  index: number,
+) => LlmMessage[] | Promise<LlmMessage[]>;
 
-export function fakeMessage(text: string, opts: { stop_reason?: StopReason; usage?: LlmUsage; model?: string } = {}): LlmMessage {
+export function fakeMessage(
+  text: string,
+  opts: { stop_reason?: StopReason; usage?: LlmUsage; model?: string } = {},
+): LlmMessage {
   return {
     content: [{ type: "text", text, citations: null }],
     stop_reason: opts.stop_reason ?? "end_turn",
@@ -69,7 +86,9 @@ export interface FakeLlmClient extends LlmClient {
   resumed: LlmMessage[];
 }
 
-export function createFakeClient(opts: { onParse?: FakeParseHandler; onToolRunner?: FakeRunnerHandler; tokenCount?: number } = {}): FakeLlmClient {
+export function createFakeClient(
+  opts: { onParse?: FakeParseHandler; onToolRunner?: FakeRunnerHandler; tokenCount?: number } = {},
+): FakeLlmClient {
   const parseCalls: FakeParseCall[] = [];
   const runnerCalls: FakeRunnerCall[] = [];
   const resumed: LlmMessage[] = [];
@@ -82,7 +101,9 @@ export function createFakeClient(opts: { onParse?: FakeParseHandler; onToolRunne
       parseCalls.push({ index, params: params as LlmParseParams<unknown> });
       if (!opts.onParse) throw new Error(`fake client: no onParse handler (model ${params.model})`);
       const result = await opts.onParse(params as LlmParseParams<unknown>, index);
-      const spec: FakeParseResponse = isFakeResponse(result) ? result : { __fakeResponse: true, output: result };
+      const spec: FakeParseResponse = isFakeResponse(result)
+        ? result
+        : { __fakeResponse: true, output: result };
       const stop = spec.stop_reason ?? "end_turn";
       const parsed =
         stop === "refusal" || stop === "max_tokens" || spec.output === undefined
@@ -94,7 +115,8 @@ export function createFakeClient(opts: { onParse?: FakeParseHandler; onToolRunne
         stop_details: spec.stop_details ?? null,
         usage: spec.usage ?? DEFAULT_FAKE_USAGE,
         model: spec.model ?? params.model,
-        content: parsed === null ? [] : [{ type: "text", text: JSON.stringify(spec.output), citations: null }],
+        content:
+          parsed === null ? [] : [{ type: "text", text: JSON.stringify(spec.output), citations: null }],
       };
     },
     toolRunner(params: LlmToolRunnerParams): LlmToolRunner {
@@ -139,7 +161,8 @@ const STAGE_BY_SYSTEM: ReadonlyArray<[string, string]> = [
 
 /** Identify which stage built a request by its frozen system prompt. */
 export function stageOf(params: { system?: string | Array<{ text: string }> | undefined }): string {
-  const text = typeof params.system === "string" ? params.system : (params.system ?? []).map((b) => b.text).join("\n");
+  const text =
+    typeof params.system === "string" ? params.system : (params.system ?? []).map((b) => b.text).join("\n");
   for (const [sys, name] of STAGE_BY_SYSTEM) if (text === sys) return name;
   return "unknown";
 }

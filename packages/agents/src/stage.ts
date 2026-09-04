@@ -46,14 +46,22 @@ export interface ParseRun<T> {
 }
 
 /** Run one structured-output call with uniform refusal / truncation / null-output handling. */
-export async function runParse<T>(client: LlmClient, stage: string, params: LlmParseParams<T>): Promise<ParseRun<T>> {
+export async function runParse<T>(
+  client: LlmClient,
+  stage: string,
+  params: LlmParseParams<T>,
+): Promise<ParseRun<T>> {
   const started = performance.now();
   const res = await client.parse(params);
   const durationMs = Math.round(performance.now() - started);
   const meter = new UsageMeter();
   const usage = meter.add(params.model, res.usage);
   if (res.stop_reason === "refusal") {
-    throw new LlmRefusalError(stage, res.stop_details?.category ?? null, res.stop_details?.explanation ?? null);
+    throw new LlmRefusalError(
+      stage,
+      res.stop_details?.category ?? null,
+      res.stop_details?.explanation ?? null,
+    );
   }
   if (res.stop_reason === "max_tokens") throw new LlmTruncatedError(stage);
   if (res.parsed_output === null || res.parsed_output === undefined) {
@@ -84,7 +92,11 @@ export interface RunnerRun {
  * Drive a tool runner to completion, folding every iteration's usage into the total and resuming
  * paused server-tool turns. A refusal anywhere aborts the stage.
  */
-export async function runToolRunner(client: LlmClient, stage: string, params: LlmToolRunnerParams): Promise<RunnerRun> {
+export async function runToolRunner(
+  client: LlmClient,
+  stage: string,
+  params: LlmToolRunnerParams,
+): Promise<RunnerRun> {
   const started = performance.now();
   const meter = new UsageMeter();
   const runner: LlmToolRunner = client.toolRunner(params);
@@ -94,7 +106,11 @@ export async function runToolRunner(client: LlmClient, stage: string, params: Ll
     iterations++;
     meter.add(params.model, message.usage);
     if (message.stop_reason === "refusal") {
-      throw new LlmRefusalError(stage, message.stop_details?.category ?? null, message.stop_details?.explanation ?? null);
+      throw new LlmRefusalError(
+        stage,
+        message.stop_details?.category ?? null,
+        message.stop_details?.explanation ?? null,
+      );
     }
     if (message.stop_reason === "pause_turn") {
       pausedTurns++;
@@ -104,7 +120,10 @@ export async function runToolRunner(client: LlmClient, stage: string, params: Ll
   const final = await runner.done();
   const finalText = textOf(final);
   if (finalText.trim().length === 0) {
-    throw new LlmOutputError(stage, `tool runner ended with no text (stop_reason=${final.stop_reason ?? "null"})`);
+    throw new LlmOutputError(
+      stage,
+      `tool runner ended with no text (stop_reason=${final.stop_reason ?? "null"})`,
+    );
   }
   return {
     final,

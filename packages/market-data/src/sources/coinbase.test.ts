@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { HOUR, coinbaseRow, fakeFetch, jsonResponse, loadFixture } from "../__fixtures__/helpers.js";
 import { HttpError, Pacer } from "../http.js";
-import { backfillCoinbase, coinbaseWindows, fetchCoinbaseCandles, granularityFor, parseCoinbaseCandles } from "./coinbase.js";
+import {
+  backfillCoinbase,
+  coinbaseWindows,
+  fetchCoinbaseCandles,
+  granularityFor,
+  parseCoinbaseCandles,
+} from "./coinbase.js";
 
 describe("parseCoinbaseCandles (recorded fixture)", () => {
   const raw = loadFixture<number[][]>("coinbase-candles-1h.json");
@@ -11,7 +17,13 @@ describe("parseCoinbaseCandles (recorded fixture)", () => {
     const out = parseCoinbaseCandles(raw, { product: "BTC-USD", granularity: 3600 });
     expect(out).toHaveLength(raw.length);
     const newest = out[out.length - 1]!;
-    expect(newest).toMatchObject({ venue: "coinbase", symbol: "BTC-USD", interval: "1h", openTime: 1788537600000, closeTime: 1788541199999 });
+    expect(newest).toMatchObject({
+      venue: "coinbase",
+      symbol: "BTC-USD",
+      interval: "1h",
+      openTime: 1788537600000,
+      closeTime: 1788541199999,
+    });
     expect(newest.low).toBe(79374.5);
     expect(newest.high).toBe(79875.32);
     expect(newest.open).toBe(79422.95);
@@ -22,7 +34,9 @@ describe("parseCoinbaseCandles (recorded fixture)", () => {
 
   it("rejects rows of the wrong width or type", () => {
     expect(() => parseCoinbaseCandles([[1, 2, 3]], { product: "BTC-USD", granularity: 3600 })).toThrow();
-    expect(() => parseCoinbaseCandles([["1", 2, 3, 4, 5, 6]], { product: "BTC-USD", granularity: 3600 })).toThrow();
+    expect(() =>
+      parseCoinbaseCandles([["1", 2, 3, 4, 5, 6]], { product: "BTC-USD", granularity: 3600 }),
+    ).toThrow();
   });
 
   it("granularityFor maps core intervals", () => {
@@ -35,15 +49,35 @@ describe("parseCoinbaseCandles (recorded fixture)", () => {
 describe("fetchCoinbaseCandles", () => {
   it("sends ISO start/end and granularity", async () => {
     const fetch = fakeFetch(() => [coinbaseRow(HOUR)]);
-    await fetchCoinbaseCandles({ fetch, product: "BTC-USD", granularity: 3600, start: Date.UTC(2026, 8, 1), end: Date.UTC(2026, 8, 1, 5) });
+    await fetchCoinbaseCandles({
+      fetch,
+      product: "BTC-USD",
+      granularity: 3600,
+      start: Date.UTC(2026, 8, 1),
+      end: Date.UTC(2026, 8, 1, 5),
+    });
     const u = fetch.calls[0]!;
     expect(u.origin + u.pathname).toBe("https://api.exchange.coinbase.com/products/BTC-USD/candles");
-    expect(Object.fromEntries(u.searchParams)).toEqual({ granularity: "3600", start: "2026-09-01T00:00:00.000Z", end: "2026-09-01T05:00:00.000Z" });
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      granularity: "3600",
+      start: "2026-09-01T00:00:00.000Z",
+      end: "2026-09-01T05:00:00.000Z",
+    });
   });
 
   it("surfaces the 400 for oversized ranges as HttpError", async () => {
-    const fetch = fakeFetch(() => jsonResponse({ message: "granularity too small for the requested time range. Count of aggregations requested exceeds 300" }, 400));
-    await expect(fetchCoinbaseCandles({ fetch, product: "BTC-USD", granularity: 3600 })).rejects.toMatchObject({ name: "HttpError", status: 400 });
+    const fetch = fakeFetch(() =>
+      jsonResponse(
+        {
+          message:
+            "granularity too small for the requested time range. Count of aggregations requested exceeds 300",
+        },
+        400,
+      ),
+    );
+    await expect(
+      fetchCoinbaseCandles({ fetch, product: "BTC-USD", granularity: 3600 }),
+    ).rejects.toMatchObject({ name: "HttpError", status: 400 });
     expect(fetch.calls).toHaveLength(1);
   });
 });
@@ -72,7 +106,14 @@ describe("backfillCoinbase", () => {
     const sleeps: number[] = [];
     let now = 0;
     const pacer = new Pacer(200, { now: () => now, sleep: async (ms) => void sleeps.push(ms) });
-    const out = await backfillCoinbase({ fetch: server, product: "BTC-USD", granularity: 3600, from: T0, to: T0 + 700 * HOUR, pacer });
+    const out = await backfillCoinbase({
+      fetch: server,
+      product: "BTC-USD",
+      granularity: 3600,
+      from: T0,
+      to: T0 + 700 * HOUR,
+      pacer,
+    });
     expect(server.calls).toHaveLength(3);
     expect(out).toHaveLength(701);
     expect(out[0]!.openTime).toBe(T0);
@@ -85,7 +126,18 @@ describe("backfillCoinbase", () => {
 
   it("propagates HttpError from a window instead of skipping it", async () => {
     let n = 0;
-    const server = fakeFetch(() => (++n === 2 ? jsonResponse({ message: "NotFound" }, 404) : [coinbaseRow(T0)]));
-    await expect(backfillCoinbase({ fetch: server, product: "BTC-USD", granularity: 3600, from: T0, to: T0 + 400 * HOUR, pacer: new Pacer(0) })).rejects.toBeInstanceOf(HttpError);
+    const server = fakeFetch(() =>
+      ++n === 2 ? jsonResponse({ message: "NotFound" }, 404) : [coinbaseRow(T0)],
+    );
+    await expect(
+      backfillCoinbase({
+        fetch: server,
+        product: "BTC-USD",
+        granularity: 3600,
+        from: T0,
+        to: T0 + 400 * HOUR,
+        pacer: new Pacer(0),
+      }),
+    ).rejects.toBeInstanceOf(HttpError);
   });
 });

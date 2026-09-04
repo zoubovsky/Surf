@@ -50,7 +50,11 @@ const DEFAULT_START = Date.UTC(2024, 0, 1);
  * Trace a piecewise-linear price path with bounded noise. Each leg's end bar carries a wick that
  * makes it the strict extreme of the leg, so the realised pivots are known exactly.
  */
-export function candlesFromPath(start: number, points: readonly PathPoint[], opts: SyntheticOptions = {}): SyntheticSeries {
+export function candlesFromPath(
+  start: number,
+  points: readonly PathPoint[],
+  opts: SyntheticOptions = {},
+): SyntheticSeries {
   const symbol = opts.symbol ?? "BTC-USD";
   const venue = opts.venue ?? "synthetic";
   const interval = opts.interval ?? "1h";
@@ -234,7 +238,10 @@ export function syntheticImpulse(opts: SyntheticImpulseOptions = {}): SyntheticS
   if (partial < 1 && n >= 1) {
     const lastLeg = at(legs, n - 1);
     const prev = n >= 2 ? at(legs, n - 2).price : start;
-    legs[n - 1] = { price: prev + (lastLeg.price - prev) * partial, bars: Math.max(1, Math.round(lastLeg.bars * partial)) };
+    legs[n - 1] = {
+      price: prev + (lastLeg.price - prev) * partial,
+      bars: Math.max(1, Math.round(lastLeg.bars * partial)),
+    };
   }
   return candlesFromPath(start, [...legs, ...(opts.tail ?? [])], opts);
 }

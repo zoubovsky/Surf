@@ -82,7 +82,8 @@ export class TranscriptChain {
     if (providers.length === 0) throw new Error("TranscriptChain needs at least one provider");
     this.providers = providers;
     this.initialDelayMs = opts.initialDelayMs ?? DEFAULT_INITIAL_DELAY_MS;
-    this.schedule = opts.retrySchedule && opts.retrySchedule.length > 0 ? opts.retrySchedule : DEFAULT_RETRY_SCHEDULE;
+    this.schedule =
+      opts.retrySchedule && opts.retrySchedule.length > 0 ? opts.retrySchedule : DEFAULT_RETRY_SCHEDULE;
     this.clock = opts.clock ?? systemClock;
     this.sleep = opts.sleep ?? defaultSleep;
     this.logger = opts.logger ?? createLogger("silent", "ingestion");
@@ -104,19 +105,33 @@ export class TranscriptChain {
         const durationMs = Math.round(performance.now() - started);
         if (transcript && transcript.segments.length > 0) {
           attempts.push({ provider: p.name, outcome: "ok", at, durationMs });
-          this.logger.info({ videoId, provider: p.name, segments: transcript.segments.length }, "transcript fetched");
+          this.logger.info(
+            { videoId, provider: p.name, segments: transcript.segments.length },
+            "transcript fetched",
+          );
           return { transcript, attempts, blocked: false };
         }
         attempts.push({ provider: p.name, outcome: "none", at, durationMs });
       } catch (err) {
         const durationMs = Math.round(performance.now() - started);
-        const attempt: ProviderAttempt = { provider: p.name, outcome: classify(err), at, durationMs, error: String((err as Error)?.message ?? err).slice(0, 500) };
-        if (err instanceof TranscriptRateLimitError && err.retryAfterMs !== undefined) attempt.retryAfterMs = err.retryAfterMs;
+        const attempt: ProviderAttempt = {
+          provider: p.name,
+          outcome: classify(err),
+          at,
+          durationMs,
+          error: String((err as Error)?.message ?? err).slice(0, 500),
+        };
+        if (err instanceof TranscriptRateLimitError && err.retryAfterMs !== undefined)
+          attempt.retryAfterMs = err.retryAfterMs;
         attempts.push(attempt);
-        this.logger.warn({ videoId, provider: p.name, outcome: attempt.outcome, err: attempt.error }, "transcript provider failed");
+        this.logger.warn(
+          { videoId, provider: p.name, outcome: attempt.outcome, err: attempt.error },
+          "transcript provider failed",
+        );
       }
     }
-    const blocked = attempts.length > 0 && attempts.every((a) => a.outcome === "blocked" || a.outcome === "fatal");
+    const blocked =
+      attempts.length > 0 && attempts.every((a) => a.outcome === "blocked" || a.outcome === "fatal");
     return { transcript: null, attempts, blocked };
   }
 
@@ -135,7 +150,8 @@ export class TranscriptChain {
     for (;;) {
       if (opts.signal?.aborted) return { status: "pending", attempts, rounds, nextRetryMs: delay };
       if (delay > 0) {
-        if (this.clock.now() - start + delay > deadlineMs) return { status: "pending", attempts, rounds, nextRetryMs: delay };
+        if (this.clock.now() - start + delay > deadlineMs)
+          return { status: "pending", attempts, rounds, nextRetryMs: delay };
         await this.sleep(delay);
       }
       const r = await this.fetch(videoId, lang);

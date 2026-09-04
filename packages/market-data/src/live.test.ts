@@ -5,13 +5,24 @@
 import { describe, expect, it } from "vitest";
 import { crossCheck } from "./crosscheck.js";
 import { fetchCoinbaseCandles } from "./sources/coinbase.js";
-import { fetchStrikeFundingHistory, fetchStrikeKlines, fetchStrikeOpenInterestHistory, fetchStrikePremiumIndex } from "./sources/strike.js";
+import {
+  fetchStrikeFundingHistory,
+  fetchStrikeKlines,
+  fetchStrikeOpenInterestHistory,
+  fetchStrikePremiumIndex,
+} from "./sources/strike.js";
 
 const live = process.env["MARKET_LIVE_TESTS"] === "1";
 
 describe.skipIf(!live)("live market data (MARKET_LIVE_TESTS=1)", () => {
   it("Strike index 1h and Coinbase 1h overlap within 1%", async () => {
-    const strike = await fetchStrikeKlines({ fetch, symbol: "BTC-USD", interval: "1h", priceType: "index", limit: 5 });
+    const strike = await fetchStrikeKlines({
+      fetch,
+      symbol: "BTC-USD",
+      interval: "1h",
+      priceType: "index",
+      limit: 5,
+    });
     const coinbase = await fetchCoinbaseCandles({ fetch, product: "BTC-USD", granularity: 3600 });
     expect(strike.length).toBeGreaterThanOrEqual(3);
     expect(coinbase.length).toBeGreaterThan(5);
@@ -21,7 +32,9 @@ describe.skipIf(!live)("live market data (MARKET_LIVE_TESTS=1)", () => {
       const c = byOpen.get(s.openTime);
       if (!c) continue;
       const res = crossCheck(s, c, 1);
-      expect(res, `bucket ${new Date(s.openTime).toISOString()} deviates ${res.deviationPct}%`).toMatchObject({ ok: true });
+      expect(res, `bucket ${new Date(s.openTime).toISOString()} deviates ${res.deviationPct}%`).toMatchObject(
+        { ok: true },
+      );
       compared++;
     }
     expect(compared).toBeGreaterThanOrEqual(3);

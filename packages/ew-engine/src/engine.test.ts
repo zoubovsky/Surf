@@ -91,7 +91,10 @@ describe("analyzeMulti", () => {
     for (const c of multi.h1.candidates) {
       const base = solo.candidates.find((s) => s.id === c.id);
       expect(base).toBeDefined();
-      const expected = c.direction === "long" ? Math.min(1, (base?.score ?? 0) + 0.1) : Math.max(0, (base?.score ?? 0) - 0.1);
+      const expected =
+        c.direction === "long"
+          ? Math.min(1, (base?.score ?? 0) + 0.1)
+          : Math.max(0, (base?.score ?? 0) - 0.1);
       expect(c.score).toBeCloseTo(expected, 4);
       expect(c.notes[c.notes.length - 1]).toContain(c.direction === "long" ? "agrees" : "conflicts");
     }
@@ -106,7 +109,9 @@ describe("analyzeMulti", () => {
     expect(multi.h1.candidates).toHaveLength(2);
     expect(multi.h1.candidates[0]?.direction).toBe("long");
     for (let i = 1; i < multi.h1.candidates.length; i++) {
-      expect(multi.h1.candidates[i - 1]?.score ?? 0).toBeGreaterThanOrEqual(multi.h1.candidates[i]?.score ?? 0);
+      expect(multi.h1.candidates[i - 1]?.score ?? 0).toBeGreaterThanOrEqual(
+        multi.h1.candidates[i]?.score ?? 0,
+      );
     }
   });
 

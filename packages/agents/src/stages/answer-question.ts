@@ -12,7 +12,10 @@ export const ANSWER_MAX_CHARS = 1_200;
 const AnswerOut = z.object({ answer: z.string() });
 
 /** Sonnet: answer an operator question from read-only context. No tools. */
-export async function answerQuestion(deps: StageDeps, rawInput: AnswerQuestionInput): Promise<StageResult<string>> {
+export async function answerQuestion(
+  deps: StageDeps,
+  rawInput: AnswerQuestionInput,
+): Promise<StageResult<string>> {
   const input = AnswerQuestionInput.parse(rawInput);
   const reasoning = reasoningFor(deps.model, "low");
   const run = await runParse(deps.client, "answer-question", {
@@ -21,7 +24,10 @@ export async function answerQuestion(deps: StageDeps, rawInput: AnswerQuestionIn
     system: systemBlocks(SYSTEM_ANSWER),
     messages: [buildAnswerUserMessage(input)],
     ...(reasoning.thinking ? { thinking: reasoning.thinking } : {}),
-    output_config: { ...(reasoning.effort ? { effort: reasoning.effort } : {}), format: zodOutputFormat(AnswerOut) },
+    output_config: {
+      ...(reasoning.effort ? { effort: reasoning.effort } : {}),
+      format: zodOutputFormat(AnswerOut),
+    },
   });
   return { ...run, output: clip(run.output.answer.trim(), ANSWER_MAX_CHARS) };
 }

@@ -5,15 +5,24 @@ import { RiskLimits } from "./schemas/trading.js";
 export const AppConfig = z.object({
   TRADING_MODE: z.enum(["shadow", "live"]).default("shadow"),
   TZ: z.string().default("Europe/London"),
-  DAILY_BRIEF_TIME: z.string().regex(/^\d{2}:\d{2}$/).default("07:00"),
+  DAILY_BRIEF_TIME: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .default("07:00"),
   DATA_DIR: z.string().default("./data"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info"),
   SYMBOL: z.string().default("BTC-USD"),
 
   STRIKE_API_BASE: z.string().url().default("https://api.strikefinance.org"),
   STRIKE_WS_BASE: z.string().default("wss://api.strikefinance.org"),
-  STRIKE_API_PUBLIC_KEY: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
-  STRIKE_API_PRIVATE_KEY: z.string().regex(/^[0-9a-f]{64}$/i).optional(),
+  STRIKE_API_PUBLIC_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
+  STRIKE_API_PRIVATE_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
 
   ANTHROPIC_API_KEY: z.string().optional(),
   MODEL_TRIAGE: z.string().default("claude-haiku-4-5"),

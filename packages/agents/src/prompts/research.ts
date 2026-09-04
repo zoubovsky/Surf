@@ -56,7 +56,10 @@ export function marketNumbers(input: ResearchInput): Record<string, unknown> {
     nextFundingTime: input.market.nextFundingTime === null ? null : isoTime(input.market.nextFundingTime),
     depthNotionalNearUsd: input.market.depthNotionalNear,
     fundingHistory: input.funding.map((f) => ({ time: isoTime(f.time), rateHourly: f.rateHourly })),
-    openInterestHistory: input.openInterestHistory.map((o) => ({ time: isoTime(o.time), openInterestUsd: o.openInterestUsd })),
+    openInterestHistory: input.openInterestHistory.map((o) => ({
+      time: isoTime(o.time),
+      openInterestUsd: o.openInterestUsd,
+    })),
     recentCloses: input.recentCloses ?? [],
   };
 }
@@ -85,7 +88,10 @@ export function buildResearchUserMessage(input: ResearchInput): MessageParam {
       untrustedBlock(
         "untrusted_headlines",
         input.recentHeadlines
-          .map((h, i) => `[${i}] ${h.publishedAt === null ? "unknown-time" : isoTime(h.publishedAt)} ${h.source}: ${h.title}`)
+          .map(
+            (h, i) =>
+              `[${i}] ${h.publishedAt === null ? "unknown-time" : isoTime(h.publishedAt)} ${h.source}: ${h.title}`,
+          )
           .join("\n"),
         { source: "rss" },
       ),

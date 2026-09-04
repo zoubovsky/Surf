@@ -4,7 +4,12 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { wrapAnthropic } from "./client.js";
 
-const usage = { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+const usage = {
+  input_tokens: 10,
+  output_tokens: 5,
+  cache_read_input_tokens: 0,
+  cache_creation_input_tokens: 0,
+};
 
 describe("wrapAnthropic", () => {
   it("passes parse through and narrows the result", async () => {
@@ -13,14 +18,26 @@ describe("wrapAnthropic", () => {
       messages: {
         parse: async (params: unknown) => {
           seen.push(params);
-          return { parsed_output: { a: 1 }, stop_reason: "end_turn", stop_details: null, usage, model: "claude-opus-5", content: [] };
+          return {
+            parsed_output: { a: 1 },
+            stop_reason: "end_turn",
+            stop_details: null,
+            usage,
+            model: "claude-opus-5",
+            content: [],
+          };
         },
         countTokens: async () => ({ input_tokens: 123 }),
       },
       beta: { messages: { toolRunner: () => ({}) } },
     } as unknown as Anthropic;
     const client = wrapAnthropic(stub);
-    const res = await client.parse({ model: "claude-opus-5", max_tokens: 10, messages: [], output_config: { format: zodOutputFormat(z.object({ a: z.number() })) } });
+    const res = await client.parse({
+      model: "claude-opus-5",
+      max_tokens: 10,
+      messages: [],
+      output_config: { format: zodOutputFormat(z.object({ a: z.number() })) },
+    });
     expect(res.parsed_output).toEqual({ a: 1 });
     expect(res.model).toBe("claude-opus-5");
     expect(seen).toHaveLength(1);

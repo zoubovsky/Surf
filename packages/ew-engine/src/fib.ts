@@ -57,7 +57,13 @@ export function extensionZone(
  * [acceptLo, acceptHi]; falls to 0 one acceptable-band-width beyond that. Monotone away from
  * the ideal band on both sides.
  */
-export function bandScore(x: number, idealLo: number, idealHi: number, acceptLo: number, acceptHi: number): number {
+export function bandScore(
+  x: number,
+  idealLo: number,
+  idealHi: number,
+  acceptLo: number,
+  acceptHi: number,
+): number {
   if (!Number.isFinite(x)) return 0;
   if (x >= idealLo && x <= idealHi) return 1;
   const width = Math.max(acceptHi - acceptLo, 1e-9);
@@ -109,7 +115,10 @@ function finish(results: GuidelineResult[]): GuidelineScore {
  * `prices` are pivots p0..pn (2 ≤ n+1 ≤ 6); `durations` (bars per wave, same order as waves)
  * optionally sharpen the alternation guideline.
  */
-export function scoreImpulseGuidelines(prices: readonly number[], durations?: readonly number[]): GuidelineScore {
+export function scoreImpulseGuidelines(
+  prices: readonly number[],
+  durations?: readonly number[],
+): GuidelineScore {
   const w = waveLengths(prices);
   const results: GuidelineResult[] = [];
   const w1 = w[0];
@@ -195,7 +204,10 @@ export function scoreImpulseGuidelines(prices: readonly number[], durations?: re
 /**
  * Score a 3-wave correction X→A→B(→C) against the guidelines for its kind.
  */
-export function scoreCorrectionGuidelines(prices: readonly number[], kind: "zigzag" | "flat"): GuidelineScore {
+export function scoreCorrectionGuidelines(
+  prices: readonly number[],
+  kind: "zigzag" | "flat",
+): GuidelineScore {
   const w = waveLengths(prices);
   const results: GuidelineResult[] = [];
   const wA = w[0];

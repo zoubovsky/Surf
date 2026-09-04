@@ -1,6 +1,6 @@
 # Ingestion & Notification Plumbing — Research Report
 
-*Researched 2026-09-04. Channel facts were verified live (channel HTML, RSS feeds, watch pages).*
+_Researched 2026-09-04. Channel facts were verified live (channel HTML, RSS feeds, watch pages)._
 
 ---
 
@@ -8,15 +8,15 @@
 
 ### A1. Channel identity and content profile
 
-| Item | Value (verified) |
-|---|---|
-| Name / handle | More Crypto Online — `@morecryptoonline` |
-| Channel ID | **`UCngIhBkikUe6e7tZTjpKK7Q`** |
-| Stats (About page) | 325K subscribers, **27,201 videos**, 82.5M views, joined 11 Jun 2021, United Kingdom |
-| Operator | MCO Global Ltd, London |
-| Description | "professional Elliott Wave and technical analysis on global markets, focusing cryptocurrencies and cryptocurrency related stocks" |
-| Paid content | Patreon (patreon.com/morecryptoonline); no YouTube membership detected |
-| Sister channel | German-language "More Crypto Online DE" — `UCRRrpK63KNPZMTLbv61UKRw` (ignore) |
+| Item               | Value (verified)                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Name / handle      | More Crypto Online — `@morecryptoonline`                                                                                          |
+| Channel ID         | **`UCngIhBkikUe6e7tZTjpKK7Q`**                                                                                                    |
+| Stats (About page) | 325K subscribers, **27,201 videos**, 82.5M views, joined 11 Jun 2021, United Kingdom                                              |
+| Operator           | MCO Global Ltd, London                                                                                                            |
+| Description        | "professional Elliott Wave and technical analysis on global markets, focusing cryptocurrencies and cryptocurrency related stocks" |
+| Paid content       | Patreon (patreon.com/morecryptoonline); no YouTube membership detected                                                            |
+| Sister channel     | German-language "More Crypto Online DE" — `UCRRrpK63KNPZMTLbv61UKRw` (ignore)                                                     |
 
 **Cadence is very high.** The RSS feed held 15 entries spanning ~62 hours. About half are duplicates: each long-form video is re-posted as a Short with the **identical title**. Verified pairs:
 
@@ -39,23 +39,24 @@ returns **only long-form videos with no duplicate Shorts**. Poll every 5–10 mi
 
 **Option 2 — YouTube Data API v3.** `search.list` costs 100 units; `playlistItems.list` costs 1 unit; default quota 10,000 units/day. Uploads playlist ID = `UU` + channel-ID suffix. Poll `playlistItems.list` on `UULF…` every 5 min = 288 units/day. Add `videos.list` (1 unit, `part=contentDetails,liveStreamingDetails`) to get duration and live/premiere status — the RSS feed carries neither.
 
-**Option 3 — WebSub/PubSubHubbub push.** Hub `https://pubsubhubbub.appspot.com/subscribe`, topic `https://www.youtube.com/xml/feeds/videos.xml?channel_id=…`. Max lease **10 days**; renew before expiry. Quirks: pings can arrive before the video shows in the feed; private/scheduled videos can ping; old videos ping on edits. Treat a ping as a *trigger* and then fetch the feed. Requires a public HTTPS callback.
+**Option 3 — WebSub/PubSubHubbub push.** Hub `https://pubsubhubbub.appspot.com/subscribe`, topic `https://www.youtube.com/xml/feeds/videos.xml?channel_id=…`. Max lease **10 days**; renew before expiry. Quirks: pings can arrive before the video shows in the feed; private/scheduled videos can ping; old videos ping on edits. Treat a ping as a _trigger_ and then fetch the feed. Requires a public HTTPS callback.
 
 **Recommendation:** UULF RSS polling as primary, WebSub as optional latency booster, Data API `videos.list` for duration/live enrichment.
 
 ### A3. Transcript retrieval — 2026 reality
 
-All five sampled videos had an auto-generated English track (`kind: asr`). Captions exist; the problem is *access from servers*.
+All five sampled videos had an auto-generated English track (`kind: asr`). Captions exist; the problem is _access from servers_.
 
-| Method | Status Sep 2026 | Notes |
-|---|---|---|
-| **youtube-transcript-api** (Python, v1.2.4) | Works from residential IPs; **blocked from AWS/GCP/Azure**. Built-in `WebshareProxyConfig` — must be *rotating Residential* ([#593](https://github.com/jdepoix/youtube-transcript-api/issues/593)) | Reverse-engineered, no SLA |
-| **yt-dlp** `--skip-download --write-auto-subs` | Needs a **PO token for subtitle requests** (`bgutil-ytdlp-pot-provider`); datacenter IPs hit bot checks and subtitle-specific 429s ([PO Token Guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide)) | Heavier, breaks periodically, actively maintained |
-| **Official `captions.download`** | **OAuth as the video owner only; third-party videos return 403 by design** | Not usable |
-| **Supadata** (paid) | Free 100 credits/mo; Basic $5/300; Pro $17/3,000. 1 credit per transcript; AI-fallback transcription 2 credits/min ([pricing](https://supadata.ai/pricing)). Reported reliable from cloud | Alternatives: TranscriptAPI, ChocoData, SocialCrawl |
-| **Audio + STT** | yt-dlp audio (same PO-token issues) → Deepgram Nova-3 $0.0043/min, OpenAI gpt-4o-mini-transcribe $0.003/min | ~2 BTC videos/day × 15 min ≈ $0.15/day |
+| Method                                         | Status Sep 2026                                                                                                                                                                                             | Notes                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **youtube-transcript-api** (Python, v1.2.4)    | Works from residential IPs; **blocked from AWS/GCP/Azure**. Built-in `WebshareProxyConfig` — must be _rotating Residential_ ([#593](https://github.com/jdepoix/youtube-transcript-api/issues/593))          | Reverse-engineered, no SLA                          |
+| **yt-dlp** `--skip-download --write-auto-subs` | Needs a **PO token for subtitle requests** (`bgutil-ytdlp-pot-provider`); datacenter IPs hit bot checks and subtitle-specific 429s ([PO Token Guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide)) | Heavier, breaks periodically, actively maintained   |
+| **Official `captions.download`**               | **OAuth as the video owner only; third-party videos return 403 by design**                                                                                                                                  | Not usable                                          |
+| **Supadata** (paid)                            | Free 100 credits/mo; Basic $5/300; Pro $17/3,000. 1 credit per transcript; AI-fallback transcription 2 credits/min ([pricing](https://supadata.ai/pricing)). Reported reliable from cloud                   | Alternatives: TranscriptAPI, ChocoData, SocialCrawl |
+| **Audio + STT**                                | yt-dlp audio (same PO-token issues) → Deepgram Nova-3 $0.0043/min, OpenAI gpt-4o-mini-transcribe $0.003/min                                                                                                 | ~2 BTC videos/day × 15 min ≈ $0.15/day              |
 
 **Recommended chain (BTC-only volume ≈ 40–60 videos/month):**
+
 1. **Primary: Supadata** (Basic tier, $5) — simplest cloud-safe path. If the agent runs on a residential box, run youtube-transcript-api direct as primary and Supadata as fallback.
 2. **Fallback: youtube-transcript-api via Webshare rotating-residential** (~$6–10/mo).
 3. **Last resort: yt-dlp + PO-token plugin → audio → Deepgram Nova-3**, also covers videos where ASR captions are not yet generated.
@@ -80,14 +81,14 @@ All five sampled videos had an auto-generated English track (`kind: asr`). Capti
 
 **Command structure** (register via `setMyCommands`):
 
-| Command | Behavior |
-|---|---|
-| `/pnl [today\|7d\|30d\|all]` | Realized/unrealized PnL, fees, max drawdown; `<pre>` table |
-| `/positions` | Open positions with entry, size, stop, invalidation level, current EW count tag; inline buttons `[Close 50%] [Close all] [Move stop]` → confirmation step |
-| `/brief` | Latest research brief: last MCO BTC video summary (primary/alt count, invalidation), funding/OI snapshot, macro calendar next 48 h |
-| `/pause` / `/resume` | Persisted `trading_enabled` flag checked before every order; `[Pause new entries only] [Pause + flatten]` with a nonce in `callback_data` |
-| `/status` | Heartbeat: last candle time, feed/transcript pipeline health, last error |
-| `/why <trade_id>` | Stored rationale for a trade |
+| Command                      | Behavior                                                                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/pnl [today\|7d\|30d\|all]` | Realized/unrealized PnL, fees, max drawdown; `<pre>` table                                                                                                |
+| `/positions`                 | Open positions with entry, size, stop, invalidation level, current EW count tag; inline buttons `[Close 50%] [Close all] [Move stop]` → confirmation step |
+| `/brief`                     | Latest research brief: last MCO BTC video summary (primary/alt count, invalidation), funding/OI snapshot, macro calendar next 48 h                        |
+| `/pause` / `/resume`         | Persisted `trading_enabled` flag checked before every order; `[Pause new entries only] [Pause + flatten]` with a nonce in `callback_data`                 |
+| `/status`                    | Heartbeat: last candle time, feed/transcript pipeline health, last error                                                                                  |
+| `/why <trade_id>`            | Stored rationale for a trade                                                                                                                              |
 
 Push side: outbound queue (new-video-digested, trade opened/closed, invalidation hit, pipeline failure) with severity → `disable_notification` for low severity.
 
@@ -97,15 +98,15 @@ Push side: outbound queue (new-video-digested, trade opened/closed, invalidation
 
 ### C1. BTC 1h OHLCV — historical and live
 
-| Source | Historical | Live | Limits | Geo |
-|---|---|---|---|---|
-| **Binance** | REST `/api/v3/klines` 1,000 bars/req. **Bulk: `data.binance.vision` daily/monthly zips, spot + USD-M futures, all intervals** | `wss://stream.binance.com:9443/ws/btcusdt@kline_1h` | Generous | **HTTP 451 from US IPs, including public endpoints** |
-| **Bybit v5** | `/v5/market/kline` 1,000 bars/req | Public WS kline | 600 req / 5 s per IP | US IPs 403; **CloudFront blocks cloud-provider ranges even for public data** |
-| **Coinbase Advanced Trade** | Public candles, no auth, **300 candles/req**; full BTC-USD history since 2015 in <300 requests | WS `candles` channel | 10 req/s | US-friendly |
-| **Kraken** | `/0/public/OHLC` returns **only the last 720 candles** — unusable for backfill | WS v2 `ohlc` | ~1 req/s | US-friendly |
-| **CoinGecko** | Hourly granularity only for 2–90-day ranges — not a 1h source | none | 30 calls/min demo | Reference price only |
-| **CryptoCompare / CoinDesk Data** | **Free tier retired 21 May 2026** | — | — | Drop |
-| **Strike Finance** | `/price/v2/klines` 1h since 2026-03-20 (index/mark/last) | WS `kline_1h`, `markprice` | 2400 weight/min | Reachable |
+| Source                            | Historical                                                                                                                    | Live                                                | Limits               | Geo                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| **Binance**                       | REST `/api/v3/klines` 1,000 bars/req. **Bulk: `data.binance.vision` daily/monthly zips, spot + USD-M futures, all intervals** | `wss://stream.binance.com:9443/ws/btcusdt@kline_1h` | Generous             | **HTTP 451 from US IPs, including public endpoints**                         |
+| **Bybit v5**                      | `/v5/market/kline` 1,000 bars/req                                                                                             | Public WS kline                                     | 600 req / 5 s per IP | US IPs 403; **CloudFront blocks cloud-provider ranges even for public data** |
+| **Coinbase Advanced Trade**       | Public candles, no auth, **300 candles/req**; full BTC-USD history since 2015 in <300 requests                                | WS `candles` channel                                | 10 req/s             | US-friendly                                                                  |
+| **Kraken**                        | `/0/public/OHLC` returns **only the last 720 candles** — unusable for backfill                                                | WS v2 `ohlc`                                        | ~1 req/s             | US-friendly                                                                  |
+| **CoinGecko**                     | Hourly granularity only for 2–90-day ranges — not a 1h source                                                                 | none                                                | 30 calls/min demo    | Reference price only                                                         |
+| **CryptoCompare / CoinDesk Data** | **Free tier retired 21 May 2026**                                                                                             | —                                                   | —                    | Drop                                                                         |
+| **Strike Finance**                | `/price/v2/klines` 1h since 2026-03-20 (index/mark/last)                                                                      | WS `kline_1h`, `markprice`                          | 2400 weight/min      | Reachable                                                                    |
 
 **Recommendation:** Canonical history = `data.binance.vision` monthly 1h zips for `BTCUSDT` if egress permits, else Coinbase BTC-USD. Live = Coinbase or Kraken WebSocket if US-hosted, Binance WS otherwise; always cross-check the closed 1h bar against a second venue and store the venue tag. Never mix spot and perp series inside one EW count. Strike's own index klines are the execution-venue truth for the 2026 window.
 
@@ -131,19 +132,20 @@ Push side: outbound queue (new-video-digested, trade opened/closed, invalidation
 
 ### D1. Open-source libraries (honest inventory)
 
-| Repo | What it does | Maturity |
-|---|---|---|
-| [btcorgtfo/ElliottWaveAnalyzer](https://github.com/btcorgtfo/ElliottWaveAnalyzer) (Python) | MonoWaves → WavePatterns (12345, ABC) validated by pluggable WaveRules | 203 stars; README: "first version of a (not yet) iterative scanner" |
-| [DrEdwardPCB/python-taew](https://github.com/DrEdwardPCB/python-taew) | MATLAB port; finds wave-1 candidates then valid 2…5 | 26 stars; author disclaims accuracy |
-| Various (alessioricco, ESJavadex, Wkemery) | Pattern finders / Flask apps with Fib projections | Hobby projects, unmaintained |
-| TypeScript | **No credible EW library found.** Swing detection via `technicalindicators` or hand-rolled ZigZag | — |
-| Best-engineered reference | LuxAlgo "Elliott Wave Rule Engine" (Pine): pivot length 10, last six swings form a candidate 1-5, three hard rules as PASS/FAIL, diagonal toggle relaxes only the overlap rule, auto re-anchoring ([page](https://www.luxalgo.com/library/indicator/pU115xkA-elliott-wave-rule-engine/)) | Design spec |
+| Repo                                                                                       | What it does                                                                                                                                                                                                                                                                             | Maturity                                                            |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [btcorgtfo/ElliottWaveAnalyzer](https://github.com/btcorgtfo/ElliottWaveAnalyzer) (Python) | MonoWaves → WavePatterns (12345, ABC) validated by pluggable WaveRules                                                                                                                                                                                                                   | 203 stars; README: "first version of a (not yet) iterative scanner" |
+| [DrEdwardPCB/python-taew](https://github.com/DrEdwardPCB/python-taew)                      | MATLAB port; finds wave-1 candidates then valid 2…5                                                                                                                                                                                                                                      | 26 stars; author disclaims accuracy                                 |
+| Various (alessioricco, ESJavadex, Wkemery)                                                 | Pattern finders / Flask apps with Fib projections                                                                                                                                                                                                                                        | Hobby projects, unmaintained                                        |
+| TypeScript                                                                                 | **No credible EW library found.** Swing detection via `technicalindicators` or hand-rolled ZigZag                                                                                                                                                                                        | —                                                                   |
+| Best-engineered reference                                                                  | LuxAlgo "Elliott Wave Rule Engine" (Pine): pivot length 10, last six swings form a candidate 1-5, three hard rules as PASS/FAIL, diagonal toggle relaxes only the overlap rule, auto re-anchoring ([page](https://www.luxalgo.com/library/indicator/pU115xkA-elliott-wave-rule-engine/)) | Design spec                                                         |
 
 **Verdict:** nothing production-grade exists. Plan to write ~500 lines: ZigZag → candidate enumeration → rule pruning → Fibonacci scoring.
 
 ### D2. Rules and guidelines to encode
 
 Hard rules (violating any = invalid impulse):
+
 1. Wave 2 never retraces >100% of wave 1.
 2. Wave 3 is never the shortest of 1, 3, 5.
 3. Wave 4 never enters wave 1's price territory — **except in diagonals** (leading diagonal = wave 1/A, ending diagonal = wave 5/C).
@@ -159,12 +161,13 @@ Confluence practitioners use: wave 3 carries the highest volume and RSI of the c
 
 ### D4. Honest assessment
 
-Elliott Wave is under-determined: for any swing sequence there are typically several rule-valid counts, and counts get relabeled after the fact. No peer-reviewed work demonstrates out-of-sample trading edge from automated counting. LLMs looking at chart images hallucinate pivots. What *is* tractable: (a) deterministic swing detection, (b) deterministic hard-rule checking and Fib scoring, (c) LLM reasoning over *structured* swing data and reconciliation with a human analyst's stated count.
+Elliott Wave is under-determined: for any swing sequence there are typically several rule-valid counts, and counts get relabeled after the fact. No peer-reviewed work demonstrates out-of-sample trading edge from automated counting. LLMs looking at chart images hallucinate pivots. What _is_ tractable: (a) deterministic swing detection, (b) deterministic hard-rule checking and Fib scoring, (c) LLM reasoning over _structured_ swing data and reconciliation with a human analyst's stated count.
 
 **Proposed hybrid:**
+
 1. **Deterministic layer (no LLM):** multi-threshold ZigZag on 1h and 4h (ATR-scaled thresholds) → last N swings → enumerate 5-wave and 3-wave candidates → prune by hard rules → score by Fib guidelines, alternation, RSI/volume → emit top-k counts each with **explicit invalidation price** and Fib target zones as JSON.
 2. **Analyst-prior layer:** the MCO transcript pipeline extracts `{primary_count, alt_count, invalidation_levels, targets, timeframe, bias}` — the channel's format maps almost 1:1 onto this schema.
-3. **LLM reconciliation:** given deterministic candidates and the MCO prior, the LLM ranks a working count, explains disagreement, outputs confidence. It may *not* override hard-rule failures or move invalidation levels.
+3. **LLM reconciliation:** given deterministic candidates and the MCO prior, the LLM ranks a working count, explains disagreement, outputs confidence. It may _not_ override hard-rule failures or move invalidation levels.
 4. **Risk hooks:** trade only when deterministic count, MCO prior, and momentum confluence agree; size scales with confidence; a breach of the invalidation level auto-flattens regardless of LLM opinion.
 5. **Evaluation:** log every count and its later relabeling; measure how often the "primary" survived N bars; backtest the invalidation-stop framework separately from the count picker.
 

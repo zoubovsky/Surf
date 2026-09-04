@@ -30,7 +30,11 @@ export interface AggregateOptions {
  * All input candles must share venue, symbol and a source interval that divides the target.
  * Misaligned source candles (openTime not on the source grid) throw — corrupted input must be loud.
  */
-export function aggregate(candles: readonly Candle[], target: Interval, opts: AggregateOptions = {}): Candle[] {
+export function aggregate(
+  candles: readonly Candle[],
+  target: Interval,
+  opts: AggregateOptions = {},
+): Candle[] {
   const requireComplete = opts.requireComplete ?? true;
   const series = normalizeSeries(candles);
   const first = series[0];
@@ -46,8 +50,10 @@ export function aggregate(candles: readonly Candle[], target: Interval, opts: Ag
 
   const buckets = new Map<number, Candle[]>();
   for (const c of series) {
-    if (c.interval !== first.interval) throw new Error(`aggregate: mixed intervals (${first.interval} vs ${c.interval})`);
-    if (c.openTime % sourceMs !== 0) throw new Error(`aggregate: misaligned ${c.interval} candle at ${c.openTime}`);
+    if (c.interval !== first.interval)
+      throw new Error(`aggregate: mixed intervals (${first.interval} vs ${c.interval})`);
+    if (c.openTime % sourceMs !== 0)
+      throw new Error(`aggregate: misaligned ${c.interval} candle at ${c.openTime}`);
     const start = floorToInterval(c.openTime, targetMs);
     const list = buckets.get(start);
     if (list) list.push(c);
@@ -110,7 +116,11 @@ export interface AlignOptions {
 }
 
 /** Validate grid alignment and detect gaps in a single-venue series. Never fabricates prices silently. */
-export function alignAndFill(candles: readonly Candle[], interval: Interval, opts: AlignOptions = {}): AlignResult {
+export function alignAndFill(
+  candles: readonly Candle[],
+  interval: Interval,
+  opts: AlignOptions = {},
+): AlignResult {
   const ms = INTERVAL_MS[interval];
   const misaligned: Candle[] = [];
   const good: Candle[] = [];

@@ -1,6 +1,7 @@
 import { pct, type Candle } from "@surf/core";
 
-export type CrossCheckReason = "ok" | "no-secondary" | "bucket-mismatch" | "interval-mismatch" | "deviation-exceeded";
+export type CrossCheckReason =
+  "ok" | "no-secondary" | "bucket-mismatch" | "interval-mismatch" | "deviation-exceeded";
 
 export interface CrossCheckResult {
   ok: boolean;
@@ -19,9 +20,19 @@ function brief(c: Candle): { venue: string; openTime: number; close: number } {
  * Compare the closes of the same candle bucket on two venues.
  * A missing secondary is reported as not ok (`no-secondary`) so the caller can decide whether to trade blind.
  */
-export function crossCheck(primary: Candle, secondary: Candle | null, maxDeviationPct: number): CrossCheckResult {
+export function crossCheck(
+  primary: Candle,
+  secondary: Candle | null,
+  maxDeviationPct: number,
+): CrossCheckResult {
   if (!secondary) {
-    return { ok: false, deviationPct: null, reason: "no-secondary", primary: brief(primary), secondary: null };
+    return {
+      ok: false,
+      deviationPct: null,
+      reason: "no-secondary",
+      primary: brief(primary),
+      secondary: null,
+    };
   }
   const base = { primary: brief(primary), secondary: brief(secondary) };
   if (primary.interval !== secondary.interval) {
@@ -42,7 +53,10 @@ export function crossCheck(primary: Candle, secondary: Candle | null, maxDeviati
  * Prefers the external venue (Coinbase latest closed 1h close); falls back to Strike's index (itself a
  * composite of external spot venues); null when neither is known. Non-positive inputs are treated as missing.
  */
-export function referencePrice(coinbaseLatestClose: number | null, strikeIndex: number | null): number | null {
+export function referencePrice(
+  coinbaseLatestClose: number | null,
+  strikeIndex: number | null,
+): number | null {
   if (coinbaseLatestClose !== null && Number.isFinite(coinbaseLatestClose) && coinbaseLatestClose > 0) {
     return coinbaseLatestClose;
   }

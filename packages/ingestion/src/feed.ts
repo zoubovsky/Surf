@@ -60,8 +60,7 @@ export interface FeedResponseInfo {
 }
 
 export type FetchFeedResult =
-  | ({ notModified: true } & FeedResponseInfo)
-  | ({ notModified: false } & FeedResponseInfo & ParsedFeed);
+  ({ notModified: true } & FeedResponseInfo) | ({ notModified: false } & FeedResponseInfo & ParsedFeed);
 
 export class FeedFetchError extends Error {
   constructor(
@@ -173,10 +172,14 @@ export function parseFeed(xml: string, fallbackChannelId: string | null = null):
       continue;
     }
     const alt = d.link?.find((l) => l["@_rel"] === "alternate") ?? d.link?.[0];
-    const url = alt && /^https:\/\/(www\.)?youtube\.com\//.test(alt["@_href"])
-      ? alt["@_href"]
-      : `https://www.youtube.com/watch?v=${videoId}`;
-    const title = clip((d.title ?? d["media:group"]?.["media:title"] ?? "").replace(/\s+/g, " ").trim(), MAX_TITLE);
+    const url =
+      alt && /^https:\/\/(www\.)?youtube\.com\//.test(alt["@_href"])
+        ? alt["@_href"]
+        : `https://www.youtube.com/watch?v=${videoId}`;
+    const title = clip(
+      (d.title ?? d["media:group"]?.["media:title"] ?? "").replace(/\s+/g, " ").trim(),
+      MAX_TITLE,
+    );
     videos.push({
       videoId,
       title,
@@ -229,7 +232,8 @@ export async function fetchLongFormFeed(opts: FetchFeedOptions): Promise<FetchFe
 
   const body = await res.text();
   const maxBytes = opts.maxBytes ?? 5_000_000;
-  if (body.length > maxBytes) throw new FeedFetchError(`feed body exceeds ${maxBytes} bytes`, res.status, url);
+  if (body.length > maxBytes)
+    throw new FeedFetchError(`feed body exceeds ${maxBytes} bytes`, res.status, url);
 
   const parsed = parseFeed(body, opts.channelId ?? null);
   return { notModified: false, ...info, ...parsed };

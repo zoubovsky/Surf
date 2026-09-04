@@ -55,7 +55,9 @@ describe("CandleSeries", () => {
   it("range is inclusive on both openTime bounds", () => {
     const s = new CandleSeries("1h");
     s.upsert(candles(T0, 6));
-    expect(s.range(T0 + HOUR, T0 + 3 * HOUR).map((c) => c.openTime)).toEqual([1, 2, 3].map((i) => T0 + i * HOUR));
+    expect(s.range(T0 + HOUR, T0 + 3 * HOUR).map((c) => c.openTime)).toEqual(
+      [1, 2, 3].map((i) => T0 + i * HOUR),
+    );
     expect(s.range(T0 + HOUR + 1, T0 + 3 * HOUR - 1).map((c) => c.openTime)).toEqual([T0 + 2 * HOUR]);
     expect(s.range(T0 + 99 * HOUR, T0 + 100 * HOUR)).toEqual([]);
   });

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import * as F from "./testing/fixtures.js";
 import { createReviewerTools } from "./tools/reviewer-tools.js";
 
-const tools = () => createReviewerTools({ ew: { h1: F.ewAnalysis(), h4: F.ew4h() }, prior: F.prior(), market: F.market(), limits: F.limits() });
+const tools = () =>
+  createReviewerTools({
+    ew: { h1: F.ewAnalysis(), h4: F.ew4h() },
+    prior: F.prior(),
+    market: F.market(),
+    limits: F.limits(),
+  });
 
 describe("reviewer tools", () => {
   it("finds candidates on both intervals", () => {
@@ -32,11 +38,20 @@ describe("reviewer tools", () => {
 
   it("R:R is null for non-entry plans and adverse-side stops", () => {
     expect(tools().recomputeRewardRisk(F.plan({ action: "hold" })).rewardRisk).toBeNull();
-    expect(tools().recomputeRewardRisk(F.plan({ stopLoss: { price: 79_000, label: "wrong side" } })).rewardRisk).toBeNull();
+    expect(
+      tools().recomputeRewardRisk(F.plan({ stopLoss: { price: 79_000, label: "wrong side" } })).rewardRisk,
+    ).toBeNull();
   });
 
   it("exposes prior levels with freshness", () => {
     const p = tools().getPriorLevels();
-    expect(p).toMatchObject({ videoId: "vid1", bias: "long", invalidation: 76_000, targets: [82_400], fresh: true, ageHours: 6 });
+    expect(p).toMatchObject({
+      videoId: "vid1",
+      bias: "long",
+      invalidation: 76_000,
+      targets: [82_400],
+      fresh: true,
+      ageHours: 6,
+    });
   });
 });

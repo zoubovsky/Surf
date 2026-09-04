@@ -1,5 +1,21 @@
-import type { Direction, EwCandidate, Interval, PriceLevel, PriceZone, Swing, WavePattern, WavePosition } from "@surf/core";
-import { extensionZone, retraceLevel, retraceZone, scoreCorrectionGuidelines, scoreImpulseGuidelines, waveLengths } from "./fib.js";
+import type {
+  Direction,
+  EwCandidate,
+  Interval,
+  PriceLevel,
+  PriceZone,
+  Swing,
+  WavePattern,
+  WavePosition,
+} from "@surf/core";
+import {
+  extensionZone,
+  retraceLevel,
+  retraceZone,
+  scoreCorrectionGuidelines,
+  scoreImpulseGuidelines,
+  waveLengths,
+} from "./fib.js";
 import { divergenceBetween } from "./indicators.js";
 import { bRetrace, checkCorrection, checkImpulse, classifyCorrection } from "./rules.js";
 import type { ImpulsePattern, RuleResult } from "./rules.js";
@@ -128,14 +144,20 @@ export function buildImpulseCandidate(
   const w5Targets = (from: number, w3: number): PriceZone => {
     const a = w1;
     const b = 0.618 * (w1 + w3);
-    return zone(from + dir * Math.min(a, b), from + dir * Math.max(a, b), "W5 target: W1 / 0.618×(W1+W3) from W4 end");
+    return zone(
+      from + dir * Math.min(a, b),
+      from + dir * Math.max(a, b),
+      "W5 target: W1 / 0.618×(W1+W3) from W4 end",
+    );
   };
 
   switch (position) {
     case "in-wave-2": {
       invalidation = { price: p0, label: "W1 origin (W2 may not retrace more than 100% of W1)" };
       entryZone = retraceZone(p0, p1, 0.618, 0.5, "W2 end zone: 50–61.8% retrace of W1");
-      targets = [extensionZone(inProgressEnd, w1, 1.0, 1.618, dir, "W3 target: 1.0–1.618×W1 from W2 end (est.)")];
+      targets = [
+        extensionZone(inProgressEnd, w1, 1.0, 1.618, dir, "W3 target: 1.0–1.618×W1 from W2 end (est.)"),
+      ];
       prior = 0.45;
       if (rsiExtreme(ctx, at(window, 1).index, dir)) {
         momentum += 0.15;
@@ -212,12 +234,14 @@ export function buildImpulseCandidate(
   }
 
   if (!sane(invalidation, targets, entryZone)) return null;
-  if (position === "complete") multiplier *= targetProgressMultiplier(direction, targets, ctx.lastClose, notes);
+  if (position === "complete")
+    multiplier *= targetProgressMultiplier(direction, targets, ctx.lastClose, notes);
 
   const guideline = scoreImpulseGuidelines(evalPrices, durations);
   notes.push(...ruleNotes(report.rules), ...guideline.notes.map((n) => `guideline ${n}`));
   if (pattern === "diagonal") notes.push("diagonal: W4/W1 overlap permitted under the wedge rule");
-  if (withProvisional) notes.push(`current leg extreme ${fmt(provisional.price)} used as provisional next pivot`);
+  if (withProvisional)
+    notes.push(`current leg extreme ${fmt(provisional.price)} used as provisional next pivot`);
 
   return {
     base: {
@@ -245,7 +269,12 @@ export function buildImpulseCandidate(
  * Discount structures whose first target has already been reached by the last close: the count may
  * be right, but the move it implies is largely spent.
  */
-function targetProgressMultiplier(direction: Direction, targets: readonly PriceZone[], lastClose: number, notes: string[]): number {
+function targetProgressMultiplier(
+  direction: Direction,
+  targets: readonly PriceZone[],
+  lastClose: number,
+  notes: string[],
+): number {
   const first = targets[0];
   if (!first) return 1;
   const reached = direction === "long" ? lastClose >= first.low : lastClose <= first.high;
@@ -445,7 +474,13 @@ export function enumerateCandidates(
       if (r) raws.push(r);
     }
     for (let m = 3; m <= Math.min(4, recent.length); m++) {
-      const r = buildCorrectionCandidate(recent.slice(-m), d.provisional, recent.slice(0, recent.length - m), ctx, d.k);
+      const r = buildCorrectionCandidate(
+        recent.slice(-m),
+        d.provisional,
+        recent.slice(0, recent.length - m),
+        ctx,
+        d.k,
+      );
       if (r) raws.push(r);
     }
   }

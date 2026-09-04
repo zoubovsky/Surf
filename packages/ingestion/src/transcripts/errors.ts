@@ -33,7 +33,11 @@ export class TranscriptBlockedError extends TranscriptError {
 /** Missing/invalid API key, plan limit, or payment required. Needs operator action; never retried. */
 export class TranscriptAuthError extends TranscriptError {
   constructor(provider: string, message: string, status?: number) {
-    super(`${provider}: ${message}`, { provider, retryable: false, ...(status !== undefined ? { status } : {}) });
+    super(`${provider}: ${message}`, {
+      provider,
+      retryable: false,
+      ...(status !== undefined ? { status } : {}),
+    });
     this.name = "TranscriptAuthError";
   }
 }

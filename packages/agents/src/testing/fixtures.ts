@@ -50,7 +50,10 @@ export function ewAnalysis(over: Partial<EwAnalysis> = {}): EwAnalysis {
 }
 
 export function ew4h(): EwAnalysis {
-  return ewAnalysis({ interval: "4h", candidates: [candidate({ id: "4h:imp-1", interval: "4h", position: "in-wave-3" })] });
+  return ewAnalysis({
+    interval: "4h",
+    candidates: [candidate({ id: "4h:imp-1", interval: "4h", position: "in-wave-3" })],
+  });
 }
 
 export function market(over: Partial<MarketSnapshot> = {}): MarketSnapshot {
@@ -121,7 +124,8 @@ export function prior(over: Partial<AnalystPrior> = {}): AnalystPrior {
       "the first target for wave three sits around 82,400 and then 83k above that",
       "pullback into the 77,500 to 78,100 area",
     ],
-    summary: "Analyst sees a wave 2 pullback into 77.5-78.1k with invalidation at 76k and a first target at 82.4k.",
+    summary:
+      "Analyst sees a wave 2 pullback into 77.5-78.1k with invalidation at 76k and a first target at 82.4k.",
     ...over,
   };
 }

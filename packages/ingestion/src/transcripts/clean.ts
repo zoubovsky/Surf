@@ -6,28 +6,37 @@ import { decodeEntities, type Transcript, type TranscriptSegment } from "./types
  */
 
 /** Non-speech annotations produced by ASR and manual captioners. */
-const TAG_RE = /\[\s*(music|applause|laughter|laughs|inaudible|crosstalk|silence|noise|foreign|__)\s*\]|\((music|applause|laughter|inaudible)\)/gi;
+const TAG_RE =
+  /\[\s*(music|applause|laughter|laughs|inaudible|crosstalk|silence|noise|foreign|__)\s*\]|\((music|applause|laughter|inaudible)\)/gi;
 
 const TICKER_RE = /\b(btc|eth|sol|xrp|ada|bnb|doge|ltc|avax|matic|dot|link|hype|sui|usd|usdt|usdc)\b/gi;
 const PROPER_RE = /\b(bitcoin|ethereum|solana|elliott|fibonacci)\b/gi;
-const PROPER_CASE: Record<string, string> = { bitcoin: "Bitcoin", ethereum: "Ethereum", solana: "Solana", elliott: "Elliott", fibonacci: "Fibonacci" };
+const PROPER_CASE: Record<string, string> = {
+  bitcoin: "Bitcoin",
+  ethereum: "Ethereum",
+  solana: "Solana",
+  elliott: "Elliott",
+  fibonacci: "Fibonacci",
+};
 
 /** Normalise a raw caption string: decode entities, strip tags, fix tickers, collapse whitespace. */
 export function cleanText(text: string): string {
-  return decodeEntities(text)
-    .replace(/<[^>]*>/g, " ")
-    .replace(TAG_RE, " ")
-    .replace(/[\u200B\uFEFF]/g, "")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(TICKER_RE, (m) => m.toUpperCase())
-    .replace(PROPER_RE, (m) => PROPER_CASE[m.toLowerCase()] ?? m)
-    // "79 k" / "79k" -> "79K"; "79 000" -> "79,000"
-    .replace(/\b(\d{2,3})\s?k\b/gi, "$1K")
-    .replace(/\b(\d{2,3})\s(\d{3})\b/g, "$1,$2")
-    .replace(/\s+([,.;:!?])/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    decodeEntities(text)
+      .replace(/<[^>]*>/g, " ")
+      .replace(TAG_RE, " ")
+      .replace(/[\u200B\uFEFF]/g, "")
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(TICKER_RE, (m) => m.toUpperCase())
+      .replace(PROPER_RE, (m) => PROPER_CASE[m.toLowerCase()] ?? m)
+      // "79 k" / "79k" -> "79K"; "79 000" -> "79,000"
+      .replace(/\b(\d{2,3})\s?k\b/gi, "$1K")
+      .replace(/\b(\d{2,3})\s(\d{3})\b/g, "$1,$2")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 export function cleanSegments(segments: readonly TranscriptSegment[]): TranscriptSegment[] {
@@ -37,7 +46,15 @@ export function cleanSegments(segments: readonly TranscriptSegment[]): Transcrip
 /** Return a copy of the transcript with cleaned segments and re-joined text. */
 export function cleanTranscript(t: Transcript): Transcript {
   const segments = cleanSegments(t.segments);
-  return { ...t, segments, text: segments.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim() };
+  return {
+    ...t,
+    segments,
+    text: segments
+      .map((s) => s.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  };
 }
 
 /** Price-like tokens: $79,500  79k  79K  110,000  $2,750. Bare numbers need a $ prefix, a k suffix or a thousands group to count. */
@@ -83,12 +100,16 @@ function matchesIn(text: string, res: RegExp[]): string[] {
  * Overlapping windows are merged. Works on segments; a transcript with a single segment (plain text)
  * is first split into sentence-sized pseudo-segments.
  */
-export function windowByKeyword(input: Transcript | readonly TranscriptSegment[], opts: WindowOptions = {}): KeywordWindow[] {
+export function windowByKeyword(
+  input: Transcript | readonly TranscriptSegment[],
+  opts: WindowOptions = {},
+): KeywordWindow[] {
   const before = opts.before ?? 2;
   const after = opts.after ?? 2;
   const maxWindows = opts.maxWindows ?? 40;
   let segments: readonly TranscriptSegment[] = Array.isArray(input) ? input : (input as Transcript).segments;
-  if (segments.length <= 1) segments = splitSentences(segments[0]?.text ?? (Array.isArray(input) ? "" : (input as Transcript).text));
+  if (segments.length <= 1)
+    segments = splitSentences(segments[0]?.text ?? (Array.isArray(input) ? "" : (input as Transcript).text));
 
   const priceRes = [PRICE_RE];
   const wordRes = [LEVEL_WORD_RE, ...(opts.extra ?? [])];
@@ -97,7 +118,9 @@ export function windowByKeyword(input: Transcript | readonly TranscriptSegment[]
   segments.forEach((s, i) => {
     const prices = matchesIn(s.text, priceRes);
     const words = matchesIn(s.text, wordRes);
-    const hit = opts.requireBoth ? prices.length > 0 && words.length > 0 : prices.length > 0 || words.length > 0;
+    const hit = opts.requireBoth
+      ? prices.length > 0 && words.length > 0
+      : prices.length > 0 || words.length > 0;
     if (hit) {
       hitIdx.push(i);
       hitMatches.set(i, [...prices, ...words]);
@@ -131,7 +154,11 @@ export function windowByKeyword(input: Transcript | readonly TranscriptSegment[]
     return {
       start: slice[0]?.start ?? 0,
       end: lastSeg ? lastSeg.start + lastSeg.duration : 0,
-      text: slice.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim(),
+      text: slice
+        .map((s) => s.text)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim(),
       matches: Array.from(w.matches),
       hits: w.hits,
     };

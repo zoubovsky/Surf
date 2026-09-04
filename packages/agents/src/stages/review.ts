@@ -1,5 +1,13 @@
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { CONFIDENCE_RANK, ReviewVerdict, type AnalystPrior, type Confidence, type EwAnalysis, type MarketContext, type TradePlan } from "@surf/core";
+import {
+  CONFIDENCE_RANK,
+  ReviewVerdict,
+  type AnalystPrior,
+  type Confidence,
+  type EwAnalysis,
+  type MarketContext,
+  type TradePlan,
+} from "@surf/core";
 import { z } from "zod";
 import { LlmOutputError } from "../errors.js";
 import { reasoningFor } from "../models.js";
@@ -79,7 +87,10 @@ export function computePrechecks(input: ReviewInput): ReviewPrechecks {
     candidateExists,
     marketAgeSec: 0,
     accountAgeSec: Math.round((now - input.account.asOf) / 1000),
-    candleAgeMin: input.market.lastCandleCloseTime === null ? null : Math.round((now - input.market.lastCandleCloseTime) / 60_000),
+    candleAgeMin:
+      input.market.lastCandleCloseTime === null
+        ? null
+        : Math.round((now - input.market.lastCandleCloseTime) / 60_000),
     priorFreshness: priorFreshness(input.prior, now, input.priorMaxAgeHours ?? 48),
   };
 }
@@ -112,14 +123,16 @@ export function enforceVerdictPolicy(
       out.verdict = "revise";
       out.severity = out.severity === "none" ? "minor" : out.severity;
       enforced.push("approve downgraded to revise: untraceable evidence");
-      if (out.reasons.length < 12) out.reasons.push(`Untraceable evidence ids: ${prechecks.unknownEvidence.join(", ")}`.slice(0, 300));
+      if (out.reasons.length < 12)
+        out.reasons.push(`Untraceable evidence ids: ${prechecks.unknownEvidence.join(", ")}`.slice(0, 300));
     }
   }
   if (!prechecks.candidateExists && plan.action === "enter" && out.verdict !== "reject") {
     out.verdict = "reject";
     out.severity = "major";
     enforced.push("forced reject: candidate id not found");
-    if (out.reasons.length < 12) out.reasons.push(`Candidate ${plan.candidateId} does not exist in the engine output`);
+    if (out.reasons.length < 12)
+      out.reasons.push(`Candidate ${plan.candidateId} does not exist in the engine output`);
   }
   if (out.checks.rewardRiskRecomputed === null && recomputedRr !== null) {
     out.checks.rewardRiskRecomputed = recomputedRr;
@@ -134,30 +147,38 @@ export function enforceVerdictPolicy(
  * reasoning chain), deterministic tools via the runner, then a structured-output coercion of the
  * findings. Code clamps and enforces afterwards.
  */
-export async function review(deps: StageDeps, input: ReviewInput, tools: ReviewerTools): Promise<ReviewResult> {
+export async function review(
+  deps: StageDeps,
+  input: ReviewInput,
+  tools: ReviewerTools,
+): Promise<ReviewResult> {
   const prechecks = computePrechecks(input);
   const toolDefs = [
     betaZodTool({
       name: "get_candidate",
-      description: "Return the deterministic Elliott Wave candidate with this id (1h or 4h), or null if it does not exist.",
+      description:
+        "Return the deterministic Elliott Wave candidate with this id (1h or 4h), or null if it does not exist.",
       inputSchema: z.object({ id: z.string() }),
       run: ({ id }) => stableStringify(tools.getCandidate(id), 1),
     }),
     betaZodTool({
       name: "check_stop_vs_invalidation",
-      description: "Deterministic check that the plan's stop is beyond the candidate invalidation, on the losing side of entry and inside the allowed stop-distance band.",
+      description:
+        "Deterministic check that the plan's stop is beyond the candidate invalidation, on the losing side of entry and inside the allowed stop-distance band.",
       inputSchema: z.object({}),
       run: () => stableStringify(tools.checkStopVsInvalidation(input.plan), 1),
     }),
     betaZodTool({
       name: "recompute_reward_risk",
-      description: "Deterministic reward:risk after taker fees and expected funding, from the plan's worst-case entry, stop and target.",
+      description:
+        "Deterministic reward:risk after taker fees and expected funding, from the plan's worst-case entry, stop and target.",
       inputSchema: z.object({}),
       run: () => stableStringify(tools.recomputeRewardRisk(input.plan), 1),
     }),
     betaZodTool({
       name: "get_prior_levels",
-      description: "The analyst prior's bias, invalidation, targets, entry zone, key levels and freshness, or null if no prior exists.",
+      description:
+        "The analyst prior's bias, invalidation, targets, entry zone, key levels and freshness, or null if no prior exists.",
       inputSchema: z.object({}),
       run: () => stableStringify(tools.getPriorLevels(), 1),
     }),
@@ -181,7 +202,10 @@ export async function review(deps: StageDeps, input: ReviewInput, tools: Reviewe
     system: systemBlocks(SYSTEM_REVIEW_COERCE),
     messages: [buildReviewCoerceUserMessage(runner.finalText, input.plan)],
     ...(coerceReasoning.thinking ? { thinking: coerceReasoning.thinking } : {}),
-    output_config: { ...(coerceReasoning.effort ? { effort: coerceReasoning.effort } : {}), format: lenientFormat(ReviewVerdict) },
+    output_config: {
+      ...(coerceReasoning.effort ? { effort: coerceReasoning.effort } : {}),
+      format: lenientFormat(ReviewVerdict),
+    },
   });
 
   let raw: ReviewVerdict;

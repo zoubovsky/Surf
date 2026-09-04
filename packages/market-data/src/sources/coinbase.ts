@@ -23,10 +23,20 @@ export function granularityFor(interval: Interval): CoinbaseGranularity {
 }
 
 /** [time_s, low, high, open, close, volume], newest first. */
-export const CoinbaseCandleRow = z.tuple([z.number(), z.number(), z.number(), z.number(), z.number(), z.number()]);
+export const CoinbaseCandleRow = z.tuple([
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+]);
 export const CoinbaseCandles = z.array(CoinbaseCandleRow);
 
-export function parseCoinbaseCandles(raw: unknown, ctx: { product: string; granularity: CoinbaseGranularity }): Candle[] {
+export function parseCoinbaseCandles(
+  raw: unknown,
+  ctx: { product: string; granularity: CoinbaseGranularity },
+): Candle[] {
   const rows = CoinbaseCandles.parse(raw);
   const interval = GRANULARITY_TO_INTERVAL[ctx.granularity];
   const ms = ctx.granularity * 1000;
@@ -81,7 +91,11 @@ export interface CoinbaseBackfillParams extends RequestOptions {
 }
 
 /** Enumerate the [start, end] request windows (inclusive, ≤ 300 candles each) covering [from, to]. */
-export function coinbaseWindows(from: number, to: number, granularity: CoinbaseGranularity): { start: number; end: number }[] {
+export function coinbaseWindows(
+  from: number,
+  to: number,
+  granularity: CoinbaseGranularity,
+): { start: number; end: number }[] {
   const ms = granularity * 1000;
   const span = (COINBASE_MAX_CANDLES - 1) * ms;
   const windows: { start: number; end: number }[] = [];

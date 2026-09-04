@@ -17,7 +17,14 @@ export {
   ruleZigzagC,
   ruleFlatB,
 } from "./rules.js";
-export type { RuleResult, RuleReport, ImpulsePattern, ImpulseRuleOptions, WedgeShape, CorrectionKind } from "./rules.js";
+export type {
+  RuleResult,
+  RuleReport,
+  ImpulsePattern,
+  ImpulseRuleOptions,
+  WedgeShape,
+  CorrectionKind,
+} from "./rules.js";
 export {
   FIB,
   legLength,

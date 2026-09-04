@@ -25,7 +25,12 @@ describe("SqliteCandleRepository", () => {
     expect(all.map((x) => x.close)).toEqual([1, 2.5]);
     const from = await repo.range({ venue: "strike", symbol: "BTC-USD", interval: "1h", from: 3_600_000 });
     expect(from).toHaveLength(1);
-    const limited = await repo.range({ venue: "strike", symbol: "BTC-USD", interval: "1h", limit: 1 } as never);
+    const limited = await repo.range({
+      venue: "strike",
+      symbol: "BTC-USD",
+      interval: "1h",
+      limit: 1,
+    } as never);
     expect(limited.map((x) => x.openTime)).toEqual([3_600_000]);
   });
 

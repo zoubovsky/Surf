@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { parseFeed } from "./feed.js";
 import { classifyTitle, isBitcoinTitle, isShortLike, SHORT_MAX_SEC } from "./filter.js";
 
-const titles = parseFeed(readFileSync(new URL("./__fixtures__/uulf-feed.xml", import.meta.url), "utf8")).videos.map((v) => v.title);
+const titles = parseFeed(
+  readFileSync(new URL("./__fixtures__/uulf-feed.xml", import.meta.url), "utf8"),
+).videos.map((v) => v.title);
 
 describe("isBitcoinTitle on real MCO titles", () => {
   it("selects exactly the Bitcoin videos from the live fixture", () => {
@@ -35,14 +37,30 @@ describe("isBitcoinTitle on real MCO titles", () => {
 
 describe("classifyTitle", () => {
   it("flags combined Bitcoin + other-asset titles", () => {
-    expect(classifyTitle("Bitcoin & Ethereum: The Levels That Matter")).toEqual({ asset: "BTC", combined: true, others: ["ethereum"] });
-    expect(classifyTitle("BTC, ETH and SOL – Weekend Update")).toEqual({ asset: "BTC", combined: true, others: ["eth", "sol"] });
+    expect(classifyTitle("Bitcoin & Ethereum: The Levels That Matter")).toEqual({
+      asset: "BTC",
+      combined: true,
+      others: ["ethereum"],
+    });
+    expect(classifyTitle("BTC, ETH and SOL – Weekend Update")).toEqual({
+      asset: "BTC",
+      combined: true,
+      others: ["eth", "sol"],
+    });
   });
   it("pure Bitcoin titles are not combined", () => {
-    expect(classifyTitle("Bitcoin Price: Why 79K Is the Level to Watch Today")).toEqual({ asset: "BTC", combined: false, others: [] });
+    expect(classifyTitle("Bitcoin Price: Why 79K Is the Level to Watch Today")).toEqual({
+      asset: "BTC",
+      combined: false,
+      others: [],
+    });
   });
   it("other assets are never combined", () => {
-    expect(classifyTitle("Solana: $110 Is the Only Level That Matters")).toEqual({ asset: "other", combined: false, others: ["solana"] });
+    expect(classifyTitle("Solana: $110 Is the Only Level That Matters")).toEqual({
+      asset: "other",
+      combined: false,
+      others: ["solana"],
+    });
     expect(classifyTitle("XRP on its way to $11 - The price levels that decide").asset).toBe("other");
   });
 });

@@ -36,8 +36,14 @@ describe("verifyEvidence", () => {
 
   it("drops levels not present in any evidence span and lowers confidence", () => {
     const p = prior({
-      keyLevels: [{ price: 76_000, label: "ok" }, { price: 69_420, label: "invented" }],
-      targets: [{ price: 82_400, label: "ok" }, { price: 95_000, label: "invented" }],
+      keyLevels: [
+        { price: 76_000, label: "ok" },
+        { price: 69_420, label: "invented" },
+      ],
+      targets: [
+        { price: 82_400, label: "ok" },
+        { price: 95_000, label: "invented" },
+      ],
       invalidation: { price: 74_000, label: "invented" },
       entryZone: { low: 77_000, high: 78_100, label: "half invented" },
     });
@@ -47,12 +53,20 @@ describe("verifyEvidence", () => {
     expect(out.invalidation).toBeNull();
     expect(out.entryZone).toBeNull();
     expect(out.confidence).toBe("medium");
-    expect(report.levelsDropped.map((l) => l.field).sort()).toEqual(["entryZone", "invalidation", "keyLevels", "targets"]);
+    expect(report.levelsDropped.map((l) => l.field).sort()).toEqual([
+      "entryZone",
+      "invalidation",
+      "keyLevels",
+      "targets",
+    ]);
   });
 
   it("drops evidence spans that are not verbatim in the transcript (case/whitespace-insensitive)", () => {
     const p = prior({
-      evidence: ["  AS LONG AS WE   hold above 76,000 the count is valid ", "the analyst clearly said 76k is the line in the sand"],
+      evidence: [
+        "  AS LONG AS WE   hold above 76,000 the count is valid ",
+        "the analyst clearly said 76k is the line in the sand",
+      ],
     });
     const { prior: out, report } = verifyEvidence(p, TRANSCRIPT);
     expect(out.evidence).toHaveLength(1);
@@ -63,7 +77,9 @@ describe("verifyEvidence", () => {
   });
 
   it("throws when nothing verifies", () => {
-    expect(() => verifyEvidence(prior({ evidence: ["completely fabricated sentence about bitcoin"] }), TRANSCRIPT)).toThrow(UnsupportedPriorError);
+    expect(() =>
+      verifyEvidence(prior({ evidence: ["completely fabricated sentence about bitcoin"] }), TRANSCRIPT),
+    ).toThrow(UnsupportedPriorError);
   });
 
   it("forces asset to BTC", () => {

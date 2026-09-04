@@ -79,7 +79,12 @@ export function conform(schema: AnyZod, value: unknown): unknown {
     }
     case "record": {
       if (!value || typeof value !== "object") return value;
-      return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, conform(def["valueType"] as AnyZod, v)]));
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+          k,
+          conform(def["valueType"] as AnyZod, v),
+        ]),
+      );
     }
     default:
       return value;

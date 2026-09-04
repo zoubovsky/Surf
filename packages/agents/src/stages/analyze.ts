@@ -26,12 +26,20 @@ export interface AnalyzeOptions {
  * after the user turn) on models that support it, so the cached prefix is untouched and the text
  * cannot be confused with input data; elsewhere it is a clearly tagged block in a second user turn.
  */
-export function analyzeMessages(model: string, input: AnalyzeInput, revision?: RevisionFeedback): MessageParam[] {
+export function analyzeMessages(
+  model: string,
+  input: AnalyzeInput,
+  revision?: RevisionFeedback,
+): MessageParam[] {
   const messages: MessageParam[] = [buildAnalyzeUserMessage(input)];
   if (revision) {
     const text = renderRevisionFeedback(revision);
     if (supportsMidConversationSystem(model)) messages.push({ role: "system", content: text });
-    else messages.push({ role: "user", content: `<reviewer_revision_request>\n${text}\n</reviewer_revision_request>` });
+    else
+      messages.push({
+        role: "user",
+        content: `<reviewer_revision_request>\n${text}\n</reviewer_revision_request>`,
+      });
   }
   return messages;
 }
@@ -40,10 +48,20 @@ export function analyzeMessages(model: string, input: AnalyzeInput, revision?: R
 export function planInvariantViolations(plan: TradePlan): string[] {
   const v: string[] = [];
   if (plan.action === "enter") {
-    for (const f of ["direction", "candidateId", "setup", "entry", "entryKind", "stopLoss", "takeProfit", "expectedHoldHours"] as const) {
+    for (const f of [
+      "direction",
+      "candidateId",
+      "setup",
+      "entry",
+      "entryKind",
+      "stopLoss",
+      "takeProfit",
+      "expectedHoldHours",
+    ] as const) {
       if (plan[f] === null) v.push(`enter plan missing ${f}`);
     }
-    if (plan.setup && !["wave-2-end", "wave-4-end", "wave-c-end"].includes(plan.setup)) v.push(`setup ${plan.setup} is not an entry setup`);
+    if (plan.setup && !["wave-2-end", "wave-4-end", "wave-c-end"].includes(plan.setup))
+      v.push(`setup ${plan.setup} is not an entry setup`);
     if (plan.entry && plan.entry.low > plan.entry.high) v.push("entry zone low > high");
   }
   if (plan.action === "adjust-stop" && plan.newStop === null) v.push("adjust-stop without newStop");
@@ -51,7 +69,11 @@ export function planInvariantViolations(plan: TradePlan): string[] {
 }
 
 /** Opus analyst: one TradePlan from the deterministic count, the prior, context and state. */
-export async function analyze(deps: StageDeps, input: AnalyzeInput, opts: AnalyzeOptions = {}): Promise<StageResult<TradePlan>> {
+export async function analyze(
+  deps: StageDeps,
+  input: AnalyzeInput,
+  opts: AnalyzeOptions = {},
+): Promise<StageResult<TradePlan>> {
   const reasoning = reasoningFor(deps.model, "high");
   const run = await runParse(deps.client, "analyze", {
     model: deps.model,
@@ -59,7 +81,10 @@ export async function analyze(deps: StageDeps, input: AnalyzeInput, opts: Analyz
     system: systemBlocks(SYSTEM_ANALYZE),
     messages: analyzeMessages(deps.model, input, opts.revision),
     ...(reasoning.thinking ? { thinking: reasoning.thinking } : {}),
-    output_config: { ...(reasoning.effort ? { effort: reasoning.effort } : {}), format: lenientFormat(TradePlan) },
+    output_config: {
+      ...(reasoning.effort ? { effort: reasoning.effort } : {}),
+      format: lenientFormat(TradePlan),
+    },
   });
   let plan: TradePlan;
   try {
