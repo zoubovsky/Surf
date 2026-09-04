@@ -97,9 +97,9 @@ export async function runStartupChecks(ctx: AppContext, log: Logger): Promise<St
     ctx.state.observeEquity(account.equity);
     const view = await ctx.executor.view(ctx.symbol, now - 7 * 86_400_000);
     const tracked = livePositions(ctx.db);
+    // A resting entry may have filled while the daemon was down; the monitor promotes it to open.
     const unknown = view.positions.filter(
-      (x) =>
-        !tracked.some((p) => p.symbol === x.symbol && p.direction === x.direction && p.status === "open"),
+      (x) => !tracked.some((p) => p.symbol === x.symbol && p.direction === x.direction),
     );
     const orphanOpen = tracked.filter(
       (p) =>

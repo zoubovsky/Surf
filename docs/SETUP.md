@@ -44,6 +44,7 @@ The daemon ignores every chat except `TELEGRAM_CHAT_ID` and alerts you if any ot
 - Deposit trading capital via the web app. Note the account is USD-margined.
 - Set BTC-USD to **isolated margin** in the web app once (the daemon will also enforce it when flat).
 - The daemon reads equity from the API; you do not configure capital anywhere.
+- **Do not trade BTC-USD manually on this account while the daemon runs.** It reconciles every minute and treats any position it did not open as a mismatch, halting new entries until you send `/resume`. Use a Strike sub-account for discretionary trades if you want them.
 
 ## 5. What happens next
 

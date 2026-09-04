@@ -6,7 +6,7 @@ import { getPosition, livePositions } from "../db/queries.js";
 import type { ShadowExecutor } from "../execution/shadow.js";
 import { buildHarness, H, T0 } from "../testing/harness.js";
 import { fakeLlm } from "../testing/fake-llm.js";
-import { runDecisionCycle } from "./decision.js";
+import { expireRestingEntries, runDecisionCycle } from "./decision.js";
 
 const log = createLogger("silent");
 
@@ -186,5 +186,54 @@ describe("decision cycle", () => {
     expect(getPosition(h.db, p.id)!.status).toBe("cancelled");
     expect(getPosition(h.db, p.id)!.exitReason).toBe("expired");
     expect(r.terminal).not.toBe("resting-placed");
+  });
+});
+
+describe("expireRestingEntries", () => {
+  async function withResting() {
+    const llm = fakeLlm({ mark: 79_780, now: T0 });
+    const h = buildHarness({ llm });
+    await ready(h);
+    const r = await runDecisionCycle(h.app.ctx, { cycleId: "hourly-exp", kind: "video" }, log);
+    const p = getPosition(h.db, r.positionId!)!;
+    expect(p.status).toBe("resting");
+    const ew = h.app.ctx.analyzeEw({
+      h1: h.app.ctx.md.getCandles("1h", 600, "coinbase"),
+      h4: h.app.ctx.md.getCandles("4h", 300, "coinbase"),
+    });
+    return { h, p, ew: { h1: ew.h1, h4: ew.h4 } };
+  }
+
+  it("does not cancel when the candidate id changes but a same-direction candidate remains", async () => {
+    const { h, p, ew } = await withResting();
+    const renamed = {
+      h1: { ...ew.h1, candidates: ew.h1.candidates.map((c) => ({ ...c, id: `${c.id}-renamed` })) },
+      h4: { ...ew.h4, candidates: ew.h4.candidates.map((c) => ({ ...c, id: `${c.id}-renamed` })) },
+    };
+    const expired = await expireRestingEntries(h.app.ctx, renamed, log, 79_780);
+    expect(expired).toEqual([]);
+    expect(getPosition(h.db, p.id)!.status).toBe("resting");
+  });
+
+  it("cancels when the mark breaches the structural invalidation before the fill", async () => {
+    const { h, p, ew } = await withResting();
+    const inv = (p.journal as { invalidation: { price: number } | null }).invalidation!.price;
+    const breach = p.direction === "long" ? inv - 1 : inv + 1;
+    const expired = await expireRestingEntries(h.app.ctx, ew, log, breach);
+    expect(expired).toEqual([p.id]);
+    expect(getPosition(h.db, p.id)!.status).toBe("cancelled");
+  });
+
+  it("cancels when no same-direction candidate remains, and after the TTL", async () => {
+    const { h, p, ew } = await withResting();
+    const flipped = {
+      h1: { ...ew.h1, candidates: ew.h1.candidates.filter((c) => c.direction !== p.direction) },
+      h4: { ...ew.h4, candidates: ew.h4.candidates.filter((c) => c.direction !== p.direction) },
+    };
+    expect(await expireRestingEntries(h.app.ctx, flipped, log, 79_780)).toEqual([p.id]);
+
+    const second = await withResting();
+    second.h.advance((second.h.app.ctx.config.RESTING_TTL_BARS + 1) * H);
+    expect(await expireRestingEntries(second.h.app.ctx, second.ew, log, 79_780)).toEqual([second.p.id]);
   });
 });

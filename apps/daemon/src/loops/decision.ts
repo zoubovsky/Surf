@@ -59,24 +59,38 @@ export function findCandidate(ew: { h1: EwAnalysis; h4: EwAnalysis }, id: string
   return ew.h1.candidates.find((c) => c.id === id) ?? ew.h4.candidates.find((c) => c.id === id) ?? null;
 }
 
-/** Cancel resting entries that outlived their TTL or whose justifying count no longer exists. */
+/**
+ * Cancel resting entries that outlived their TTL, whose structural invalidation has already been
+ * breached by the mark price, or whose direction no longer has any rule-valid candidate at all.
+ * Candidate ids legitimately change when a new pivot confirms (which is exactly when a wave-2 or
+ * wave-4 entry tends to fill), so an id change alone is never a reason to cancel.
+ */
 export async function expireRestingEntries(
   ctx: AppContext,
   ew: { h1: EwAnalysis; h4: EwAnalysis } | null,
   log: Logger,
+  markPrice: number | null = null,
 ): Promise<string[]> {
   const now = ctx.now();
   const expired: string[] = [];
   for (const p of restingPositions(ctx.db)) {
     const bars = Math.floor((now - p.createdAt) / HOUR);
     let reason: string | null = null;
-    if (bars >= ctx.config.RESTING_TTL_BARS)
+    const j = journalOf(p);
+    const inv = j.invalidation?.price ?? null;
+    if (bars >= ctx.config.RESTING_TTL_BARS) {
       reason = `unfilled after ${bars} bars (ttl ${ctx.config.RESTING_TTL_BARS})`;
-    else if (ew) {
-      const j = journalOf(p);
-      const c = findCandidate(ew, j.candidateId);
-      if (!c || c.direction !== p.direction)
-        reason = `candidate ${j.candidateId ?? "?"} no longer valid in latest analysis`;
+    } else if (
+      markPrice !== null &&
+      inv !== null &&
+      ((p.direction === "long" && markPrice <= inv) || (p.direction === "short" && markPrice >= inv))
+    ) {
+      reason = `structural invalidation ${inv} breached by mark ${markPrice} before fill`;
+    } else if (ew) {
+      const sameDirection = [...ew.h1.candidates, ...ew.h4.candidates].some(
+        (c) => c.direction === p.direction,
+      );
+      if (!sameDirection) reason = `no ${p.direction} candidate remains in the latest analysis`;
     }
     if (!reason) continue;
     try {
@@ -206,7 +220,7 @@ export async function runDecisionCycle(
   const topRef = top ? { id: top.id, position: top.position } : null;
 
   // 3. Housekeeping on resting entries (runs even when the LLM is gated out).
-  await expireRestingEntries(ctx, ew, log);
+  await expireRestingEntries(ctx, ew, log, market.markPrice);
   const open = openPosition(ctx.db);
   const resting = restingPositions(ctx.db);
 
