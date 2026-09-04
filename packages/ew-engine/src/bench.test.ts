@@ -20,16 +20,14 @@ describe("bench", () => {
     writeFileSync(
       loose,
       JSON.stringify({
-        data: [...series.candles]
-          .reverse()
-          .map((c) => ({
-            t: c.openTime / 1000,
-            o: String(c.open),
-            h: c.high,
-            l: c.low,
-            c: c.close,
-            v: c.volume,
-          })),
+        data: [...series.candles].reverse().map((c) => ({
+          t: c.openTime / 1000,
+          o: String(c.open),
+          h: c.high,
+          l: c.low,
+          c: c.close,
+          v: c.volume,
+        })),
       }),
     );
     writeFileSync(
