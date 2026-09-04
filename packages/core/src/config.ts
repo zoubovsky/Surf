@@ -41,6 +41,8 @@ export const AppConfig = z.object({
   YOUTUBE_LONGFORM_PLAYLIST: z.string().default("UULFngIhBkikUe6e7tZTjpKK7Q"),
   /** Videos older than this are not used as a prior. */
   PRIOR_MAX_AGE_HOURS: z.coerce.number().positive().default(48),
+  /** Resting entry orders are cancelled if unfilled after this many hourly bars. */
+  RESTING_TTL_BARS: z.coerce.number().int().positive().default(12),
 });
 export type AppConfig = z.infer<typeof AppConfig>;
 
