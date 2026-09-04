@@ -1,0 +1,201 @@
+name: deploy
+
+# Runs ON the production server (self-hosted runner `surf-prod`). Writes
+# /etc/surf/surf.env from GitHub secrets + variables, builds the image, restarts
+# the stack and waits for the daemon health check.
+#
+# Manual only by default. To deploy on every push to the working branch, uncomment:
+#
+#   push:
+#     branches: ["claude/bitcoin-trading-agent-elliott-tu6o5g"]
+#
+# With a push trigger `inputs.trading_mode` is empty and the current TRADING_MODE in
+# /etc/surf/surf.env is preserved (shadow if the file does not exist yet).
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_mode:
+        description: shadow = no orders; live = places orders
+        type: choice
+        options: [shadow, live]
+        default: shadow
+      ref:
+        description: Git ref to deploy (branch, tag or SHA). Empty = the ref this workflow runs from.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surf-prod-deploy
+  cancel-in-progress: false
+
+env:
+  COMPOSE_FILE: infra/docker-compose.yml
+  ENV_FILE: /etc/surf/surf.env
+  CONTAINER: surf-daemon
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, surf-prod]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Preflight
+        run: |
+          set -euo pipefail
+          id
+          docker version --format 'docker {{.Server.Version}}'
+          docker compose version
+          test -d /etc/surf || { echo "::error::/etc/surf missing — was the server provisioned with infra/cloud-init.yaml?"; exit 1; }
+          test -w /etc/surf || { echo "::error::/etc/surf not writable by $(id -un)"; exit 1; }
+          df -h /var/lib/surf | tail -n1
+
+      - name: Write /etc/surf/surf.env (0600)
+        env:
+          # Secrets (masked in logs by Actions).
+          STRIKE_API_PUBLIC_KEY: ${{ secrets.STRIKE_API_PUBLIC_KEY }}
+          STRIKE_API_PRIVATE_KEY: ${{ secrets.STRIKE_API_PRIVATE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+          COINALYZE_API_KEY: ${{ secrets.COINALYZE_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          # Non-secret settings: repository *variables* (Settings -> Secrets and variables ->
+          # Actions -> Variables). Unset = default from infra/surf.env.example / config.ts.
+          INPUT_TRADING_MODE: ${{ inputs.trading_mode }}
+          V_TZ: ${{ vars.TZ }}
+          V_DAILY_BRIEF_TIME: ${{ vars.DAILY_BRIEF_TIME }}
+          V_LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          V_SYMBOL: ${{ vars.SYMBOL }}
+          V_STRIKE_API_BASE: ${{ vars.STRIKE_API_BASE }}
+          V_STRIKE_WS_BASE: ${{ vars.STRIKE_WS_BASE }}
+          V_MODEL_TRIAGE: ${{ vars.MODEL_TRIAGE }}
+          V_MODEL_RESEARCHER: ${{ vars.MODEL_RESEARCHER }}
+          V_MODEL_ANALYST: ${{ vars.MODEL_ANALYST }}
+          V_MODEL_REVIEWER: ${{ vars.MODEL_REVIEWER }}
+          V_YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }}
+          V_YOUTUBE_LONGFORM_PLAYLIST: ${{ vars.YOUTUBE_LONGFORM_PLAYLIST }}
+          V_PRIOR_MAX_AGE_HOURS: ${{ vars.PRIOR_MAX_AGE_HOURS }}
+          V_RISK_PER_TRADE_PCT: ${{ vars.RISK_PER_TRADE_PCT }}
+          V_MAX_LEVERAGE: ${{ vars.MAX_LEVERAGE }}
+          V_MAX_DAILY_LOSS_PCT: ${{ vars.MAX_DAILY_LOSS_PCT }}
+          V_MAX_DRAWDOWN_PCT: ${{ vars.MAX_DRAWDOWN_PCT }}
+          V_DAILY_LLM_BUDGET_USD: ${{ vars.DAILY_LLM_BUDGET_USD }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          # Trading mode: explicit input wins; otherwise keep the current value; otherwise shadow.
+          mode="${INPUT_TRADING_MODE:-}"
+          if [ -z "$mode" ] && [ -f "$ENV_FILE" ]; then
+            mode="$(sed -n 's/^TRADING_MODE=//p' "$ENV_FILE" | tail -n1)"
+          fi
+          mode="${mode:-shadow}"
+          case "$mode" in shadow|live) ;; *) echo "::error::invalid TRADING_MODE '$mode'"; exit 1;; esac
+
+          for req in STRIKE_API_PUBLIC_KEY STRIKE_API_PRIVATE_KEY ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
+            [ -n "${!req:-}" ] || echo "::warning::secret $req is empty — the daemon will start degraded"
+          done
+
+          tmp="$(mktemp)"
+          put() { # put KEY VALUE — skip empty values so config.ts defaults apply
+            [ -n "${2:-}" ] && printf '%s=%s\n' "$1" "$2" >> "$tmp" || true
+          }
+          {
+            echo "# Managed by .github/workflows/deploy.yml — redeploy overwrites this file."
+            echo "# Rendered $(date -u +%FT%TZ) from ${GITHUB_REPOSITORY}@${GITHUB_SHA::12} (run ${GITHUB_RUN_ID})"
+          } > "$tmp"
+          put TRADING_MODE "$mode"
+          put TZ "${V_TZ:-Europe/London}"
+          put DAILY_BRIEF_TIME "${V_DAILY_BRIEF_TIME:-07:00}"
+          put DATA_DIR /data
+          put LOG_LEVEL "${V_LOG_LEVEL:-info}"
+          put SYMBOL "${V_SYMBOL:-BTC-USD}"
+          put STRIKE_API_BASE "$V_STRIKE_API_BASE"
+          put STRIKE_WS_BASE "$V_STRIKE_WS_BASE"
+          put STRIKE_API_PUBLIC_KEY "$STRIKE_API_PUBLIC_KEY"
+          put STRIKE_API_PRIVATE_KEY "$STRIKE_API_PRIVATE_KEY"
+          put ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
+          put MODEL_TRIAGE "$V_MODEL_TRIAGE"
+          put MODEL_RESEARCHER "$V_MODEL_RESEARCHER"
+          put MODEL_ANALYST "$V_MODEL_ANALYST"
+          put MODEL_REVIEWER "$V_MODEL_REVIEWER"
+          put TELEGRAM_BOT_TOKEN "$TELEGRAM_BOT_TOKEN"
+          put TELEGRAM_CHAT_ID "$TELEGRAM_CHAT_ID"
+          put SUPADATA_API_KEY "$SUPADATA_API_KEY"
+          put DEEPGRAM_API_KEY "$DEEPGRAM_API_KEY"
+          put COINALYZE_API_KEY "$COINALYZE_API_KEY"
+          put FINNHUB_API_KEY "$FINNHUB_API_KEY"
+          put YOUTUBE_CHANNEL_ID "$V_YOUTUBE_CHANNEL_ID"
+          put YOUTUBE_LONGFORM_PLAYLIST "$V_YOUTUBE_LONGFORM_PLAYLIST"
+          put PRIOR_MAX_AGE_HOURS "$V_PRIOR_MAX_AGE_HOURS"
+          put RISK_PER_TRADE_PCT "$V_RISK_PER_TRADE_PCT"
+          put MAX_LEVERAGE "$V_MAX_LEVERAGE"
+          put MAX_DAILY_LOSS_PCT "$V_MAX_DAILY_LOSS_PCT"
+          put MAX_DRAWDOWN_PCT "$V_MAX_DRAWDOWN_PCT"
+          put DAILY_LLM_BUDGET_USD "$V_DAILY_LLM_BUDGET_USD"
+
+          install -m 0600 "$tmp" "$ENV_FILE"
+          rm -f "$tmp"
+          echo "wrote $ENV_FILE ($(wc -l < "$ENV_FILE") lines, mode $(stat -c '%a %U' "$ENV_FILE")); TRADING_MODE=$mode"
+          echo "keys: $(sed -n 's/^\([A-Z0-9_]*\)=.*/\1/p' "$ENV_FILE" | tr '\n' ' ')"
+          echo "TRADING_MODE=$mode" >> "$GITHUB_ENV"
+
+      - name: Build and start
+        run: |
+          set -euo pipefail
+          docker compose -f "$COMPOSE_FILE" config --quiet
+          docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
+          docker compose -f "$COMPOSE_FILE" ps
+
+      - name: Wait for health (up to 3 min)
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 36); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo missing)"
+            echo "$(date -u +%T) $CONTAINER: $status"
+            case "$status" in
+              healthy) exit 0 ;;
+              missing|exited|dead) break ;;
+            esac
+            sleep 5
+          done
+          echo "::error::$CONTAINER did not become healthy"
+          docker compose -f "$COMPOSE_FILE" ps
+          docker logs --tail 100 "$CONTAINER" 2>&1 | bash infra/redact.sh || true
+          exit 1
+
+      - name: Last 50 log lines (redacted)
+        if: always()
+        run: |
+          docker logs --tail 50 "$CONTAINER" 2>&1 | bash infra/redact.sh || true
+
+      - name: Prune old images
+        if: success()
+        run: docker image prune -f >/dev/null || true
+
+      - name: Summary
+        if: always()
+        run: |
+          status="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo missing)"
+          image="$(docker inspect --format '{{.Image}}' "$CONTAINER" 2>/dev/null | cut -c8-19 || echo n/a)"
+          {
+            echo "## deploy: ${CONTAINER} is **${status}**"
+            echo ""
+            echo "| item | value |"
+            echo "|---|---|"
+            echo "| ref | \`${{ inputs.ref || github.ref }}\` @ \`${GITHUB_SHA::12}\` |"
+            echo "| TRADING_MODE | **${TRADING_MODE:-?}** |"
+            echo "| image id | ${image} |"
+            echo "| host | $(hostname) |"
+            echo ""
+            echo "Use the **ops** workflow for logs/health."
+          } >> "$GITHUB_STEP_SUMMARY"

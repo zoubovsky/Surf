@@ -1,0 +1,127 @@
+name: ops
+
+# Diagnostics and control on the production server without SSH. Runs on the
+# self-hosted runner `surf-prod`. All output passes through infra/redact.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        default: health
+        options:
+          - logs
+          - health
+          - restart
+          - stop
+          - start
+          - db-backup-now
+          - sql
+      query:
+        description: "For action=sql: a read-only SQL statement run against a fresh backup copy (max 200 rows)"
+        type: string
+        default: "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surf-prod-ops
+  cancel-in-progress: false
+
+env:
+  COMPOSE_FILE: infra/docker-compose.yml
+  CONTAINER: surf-daemon
+
+jobs:
+  ops:
+    runs-on: [self-hosted, surf-prod]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: ${{ inputs.action }}
+        env:
+          ACTION: ${{ inputs.action }}
+          QUERY: ${{ inputs.query }}
+        run: |
+          set -uo pipefail
+          compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
+          redact() { bash infra/redact.sh; }
+          out="$RUNNER_TEMP/ops.out"
+          : > "$out"
+
+          case "$ACTION" in
+            logs)
+              docker logs --tail 300 --timestamps "$CONTAINER" 2>&1 | redact | tee "$out"
+              ;;
+
+            health)
+              {
+                echo "== health endpoint"
+                docker exec "$CONTAINER" curl -fsS -m 5 http://127.0.0.1:8787/health 2>&1 || echo "(health endpoint not reachable)"
+                echo; echo "== container health"
+                docker inspect --format '{{.Name}} {{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}} started={{.State.StartedAt}} restarts={{.RestartCount}}' "$CONTAINER" surf-backup 2>&1
+                echo; echo "== docker ps"
+                docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Size}}'
+                echo; echo "== docker stats"
+                docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}'
+                echo; echo "== disk"
+                df -h / /var/lib/surf 2>/dev/null
+                du -sh /var/lib/surf/data /var/lib/surf/data/backups 2>/dev/null
+                ls -la /var/lib/surf/data/backups 2>/dev/null | tail -n 20
+                echo; echo "== memory"
+                free -m
+                echo; echo "== uptime / load"
+                uptime
+                echo; echo "== last 20 log lines"
+                docker logs --tail 20 "$CONTAINER" 2>&1
+              } 2>&1 | redact | tee "$out"
+              ;;
+
+            restart)
+              compose restart daemon 2>&1 | redact | tee "$out"
+              sleep 10
+              docker inspect --format 'health={{.State.Health.Status}}' "$CONTAINER" | tee -a "$out"
+              ;;
+
+            stop)
+              # Stops the daemon only (exchange-side SL/TP on open positions remain).
+              # `restart: unless-stopped` means it stays down until `start`/`deploy`.
+              compose stop daemon 2>&1 | redact | tee "$out"
+              ;;
+
+            start)
+              (compose start daemon || compose up -d --no-build daemon) 2>&1 | redact | tee "$out"
+              ;;
+
+            db-backup-now)
+              compose exec -T backup sh /backup.sh once 2>&1 | redact | tee "$out"
+              ;;
+
+            sql)
+              # Never touches the live file: snapshot via sqlite3 .backup, then query
+              # the copy with -readonly, then delete the copy.
+              snap="/data/backups/adhoc-${GITHUB_RUN_ID}.sqlite"
+              compose exec -T backup sh /backup.sh snapshot "$snap" 2>&1 | redact
+              compose exec -T -e Q="$QUERY" -e SNAP="$snap" backup sh -c \
+                'sqlite3 -readonly -header -column "$SNAP" "$Q" 2>&1 | head -n 202; rm -f "$SNAP" "$SNAP-wal" "$SNAP-shm"' \
+                | redact | tee "$out"
+              ;;
+
+            *)
+              echo "unknown action: $ACTION" | tee "$out"; exit 1
+              ;;
+          esac
+          rc=$?  # pipefail is on, so a failing docker command is not masked by tee/redact
+
+          {
+            echo "## ops: ${ACTION} on $(hostname)"
+            echo ""
+            [ "$ACTION" = "sql" ] && { echo '```sql'; echo "$QUERY"; echo '```'; echo; }
+            echo '```'
+            head -c 60000 "$out"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"

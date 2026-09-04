@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+**/dist/**
+**/__fixtures__/**
+apps/daemon/drizzle/**
+.claude/**
+docs/research/strike-openapi/**

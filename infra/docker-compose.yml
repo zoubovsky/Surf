@@ -1,0 +1,82 @@
+# Surf production stack. Run from the repo root on the server (deploy.yml does this):
+#   docker compose -f infra/docker-compose.yml up -d --build
+#
+# Nothing is published to the host network: the daemon only makes outbound
+# connections (Strike WS/REST, Telegram long polling, Anthropic, YouTube).
+# Secrets come from /etc/surf/surf.env, written by deploy.yml (0600, owned by surf).
+name: surf
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "10"
+
+services:
+  daemon:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: surf-daemon:local
+    container_name: surf-daemon
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/surf/surf.env
+    environment:
+      DATA_DIR: /data
+      NODE_ENV: production
+    volumes:
+      - /var/lib/surf/data:/data
+    # No `ports:` on purpose. Health is checked from inside the container.
+    tmpfs:
+      - /tmp:size=1g # yt-dlp scratch space (tmpfs default mode 1777)
+      - /home/node/.cache:size=128m
+    mem_limit: 3g
+    memswap_limit: 3g
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+    healthcheck:
+      # Same probe as the image HEALTHCHECK; repeated here so the compose file
+      # is self-describing. deploy.yml waits for `healthy`.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  backup:
+    # Tiny sidecar: alpine + sqlite3. Runs infra/backup.sh which takes an online
+    # `.backup` of every /data/*.sqlite once a day at 03:00 UTC (and once at start),
+    # into /data/backups/<name>-YYYY-MM-DD.sqlite, pruning copies older than 14 days.
+    # Runs as uid 1000 like the daemon so it never leaves root-owned -wal/-shm files.
+    # Cron alternative (host): `0 3 * * * docker compose -f /path/infra/docker-compose.yml exec -T backup sh /backup.sh once`
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM alpine:3.21
+        RUN apk add --no-cache sqlite tzdata
+    image: surf-backup:local
+    container_name: surf-backup
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    environment:
+      DATA_DIR: /data
+      BACKUP_RETAIN_DAYS: "14"
+      BACKUP_HOUR_UTC: "3"
+    volumes:
+      - /var/lib/surf/data:/data
+      - ./backup.sh:/backup.sh:ro
+    command: ["sh", "/backup.sh", "loop"]
+    mem_limit: 128m
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging

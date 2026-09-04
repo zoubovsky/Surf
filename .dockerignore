@@ -1,0 +1,20 @@
+# Build context for the root Dockerfile. Keep it small and free of secrets.
+.git
+.github
+.claude
+infra
+docs
+README.md
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+coverage
+data
+**/data
+*.sqlite
+*.sqlite-*
+.env
+*.env
+*.log
+.DS_Store

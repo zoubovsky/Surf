@@ -1,0 +1,241 @@
+name: provision
+
+# Creates (or destroys) the Hetzner server that runs the daemon, registers it as the
+# self-hosted runner `surf-prod`, and waits until the runner is online.
+# Idempotent: re-running with an existing server/firewall just reports them.
+#
+# Secrets used: HCLOUD_TOKEN (Hetzner, read/write), RUNNER_PAT (fine-grained PAT,
+# repository Administration: read & write — mints a 1-hour runner registration token
+# and lists runners). The PAT is never written into cloud-init; only the short-lived
+# registration token is.
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_type:
+        description: Hetzner server type
+        type: string
+        default: cx32
+      location:
+        description: Hetzner location (nbg1, fsn1, hel1)
+        type: string
+        default: nbg1
+      image:
+        description: Hetzner OS image
+        type: string
+        default: ubuntu-24.04
+      destroy:
+        description: Destroy the server, firewall and runner registration instead of creating them
+        type: boolean
+        default: false
+      confirm:
+        description: Type DESTROY to confirm destruction (ignored unless destroy is true)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surf-prod-infra
+  cancel-in-progress: false
+
+env:
+  SERVER_NAME: surf-prod
+  FIREWALL_NAME: surf-fw
+  RUNNER_NAME: surf-prod
+  HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+
+jobs:
+  provision:
+    if: ${{ !inputs.destroy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install hcloud CLI
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hcloud"
+          curl -fsSL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz \
+            | tar -xz -C "$RUNNER_TEMP/hcloud"
+          sudo install -m 0755 "$(find "$RUNNER_TEMP/hcloud" -type f -name hcloud | head -n1)" /usr/local/bin/hcloud
+          hcloud version
+
+      - name: Firewall (no inbound rules; outbound open)
+        run: |
+          set -euo pipefail
+          if hcloud firewall describe "$FIREWALL_NAME" >/dev/null 2>&1; then
+            echo "firewall $FIREWALL_NAME already exists"
+          else
+            # A Hetzner firewall with no rules drops all inbound and allows all outbound.
+            hcloud firewall create --name "$FIREWALL_NAME" --label app=surf
+          fi
+
+      - name: Mint runner registration token (1h validity)
+        env:
+          RUNNER_PAT: ${{ secrets.RUNNER_PAT }}
+        run: |
+          set -euo pipefail
+          test -n "$RUNNER_PAT" || { echo "::error::RUNNER_PAT secret is not set"; exit 1; }
+          resp="$(curl -fsS -X POST \
+            -H "Authorization: Bearer ${RUNNER_PAT}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners/registration-token")"
+          token="$(jq -r '.token // empty' <<<"$resp")"
+          test -n "$token" || { echo "::error::could not mint registration token (PAT needs repository Administration: write)"; exit 1; }
+          echo "::add-mask::$token"
+          umask 077
+          printf '%s' "$token" > "$RUNNER_TEMP/reg-token"
+          echo "registration token minted (expires $(jq -r .expires_at <<<"$resp"))"
+
+      - name: Render cloud-init
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/reg-token" infra/cloud-init.yaml "$RUNNER_TEMP/cloud-init.rendered.yaml" <<'PY'
+          import sys, yaml
+          token = open(sys.argv[1]).read().strip()
+          src = open(sys.argv[2]).read()
+          out = (src.replace("__GITHUB_REPOSITORY__", "${{ github.repository }}")
+                    .replace("__RUNNER_REG_TOKEN__", token)
+                    .replace("__RUNNER_PAT__", ""))
+          assert "__" + "RUNNER" not in out and "__GITHUB" not in out, "unreplaced placeholder"
+          yaml.safe_load(out)  # must still be valid cloud-config
+          assert len(out.encode()) < 32 * 1024, "Hetzner user-data limit is 32 KiB"
+          open(sys.argv[3], "w").write(out)
+          print(f"rendered {len(out.encode())} bytes")
+          PY
+          chmod 600 "$RUNNER_TEMP/cloud-init.rendered.yaml"
+
+      - name: Create server (idempotent)
+        id: server
+        run: |
+          set -euo pipefail
+          if hcloud server describe "$SERVER_NAME" >/dev/null 2>&1; then
+            echo "server $SERVER_NAME already exists; not recreating"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            hcloud server create \
+              --name "$SERVER_NAME" \
+              --type "${{ inputs.server_type }}" \
+              --image "${{ inputs.image }}" \
+              --location "${{ inputs.location }}" \
+              --firewall "$FIREWALL_NAME" \
+              --label app=surf \
+              --user-data-from-file "$RUNNER_TEMP/cloud-init.rendered.yaml"
+            hcloud server enable-protection "$SERVER_NAME" delete
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$RUNNER_TEMP/cloud-init.rendered.yaml" "$RUNNER_TEMP/reg-token"
+          ip="$(hcloud server ip "$SERVER_NAME")"
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
+          echo "server $SERVER_NAME ip=$ip"
+          hcloud server describe "$SERVER_NAME" -o format='{{.Status}} {{.ServerType.Name}} {{.Datacenter.Location.Name}} {{.Image.Name}}' || true
+
+      - name: Wait for runner to come online (up to 15 min)
+        id: runner
+        env:
+          RUNNER_PAT: ${{ secrets.RUNNER_PAT }}
+        run: |
+          set -euo pipefail
+          # GITHUB_TOKEN has no `administration` permission, so the PAT (Administration: read) is used.
+          deadline=$(( $(date +%s) + 15*60 ))
+          status="unknown"
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status="$(curl -fsS \
+              -H "Authorization: Bearer ${RUNNER_PAT}" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" \
+              | jq -r --arg n "$RUNNER_NAME" '.runners[] | select(.name==$n) | .status' | head -n1)"
+            status="${status:-absent}"
+            echo "$(date -u +%T) runner $RUNNER_NAME: $status"
+            [ "$status" = "online" ] && break
+            sleep 20
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" != "online" ]; then
+            echo "::error::runner did not come online in 15 minutes. Check /var/log/surf-cloud-init.log via the Hetzner console."
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## provision: ${SERVER_NAME}"
+            echo ""
+            echo "| item | value |"
+            echo "|---|---|"
+            echo "| server created this run | ${{ steps.server.outputs.created || 'n/a' }} |"
+            echo "| public IPv4 | ${{ steps.server.outputs.ip || 'n/a' }} |"
+            echo "| type / location / image | ${{ inputs.server_type }} / ${{ inputs.location }} / ${{ inputs.image }} |"
+            echo "| firewall | ${FIREWALL_NAME} (no inbound rules) |"
+            echo "| runner | ${RUNNER_NAME}: ${{ steps.runner.outputs.status || 'unknown' }} |"
+            echo ""
+            echo "Next: run the **deploy** workflow (trading_mode=shadow)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  destroy:
+    if: ${{ inputs.destroy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Guard
+        run: |
+          if [ "${{ inputs.confirm }}" != "DESTROY" ]; then
+            echo "::error::destroy=true requires confirm=DESTROY"
+            exit 1
+          fi
+
+      - name: Install hcloud CLI
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hcloud"
+          curl -fsSL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz \
+            | tar -xz -C "$RUNNER_TEMP/hcloud"
+          sudo install -m 0755 "$(find "$RUNNER_TEMP/hcloud" -type f -name hcloud | head -n1)" /usr/local/bin/hcloud
+          hcloud version
+
+      - name: Delete server and firewall
+        run: |
+          set -euo pipefail
+          if hcloud server describe "$SERVER_NAME" >/dev/null 2>&1; then
+            hcloud server disable-protection "$SERVER_NAME" delete || true
+            hcloud server delete "$SERVER_NAME"
+            echo "deleted server $SERVER_NAME"
+          else
+            echo "server $SERVER_NAME does not exist"
+          fi
+          if hcloud firewall describe "$FIREWALL_NAME" >/dev/null 2>&1; then
+            hcloud firewall delete "$FIREWALL_NAME"
+            echo "deleted firewall $FIREWALL_NAME"
+          else
+            echo "firewall $FIREWALL_NAME does not exist"
+          fi
+
+      - name: Remove stale runner registration
+        env:
+          RUNNER_PAT: ${{ secrets.RUNNER_PAT }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners"
+          hdr=(-H "Authorization: Bearer ${RUNNER_PAT}" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+          id="$(curl -fsS "${hdr[@]}" "$api?per_page=100" | jq -r --arg n "$RUNNER_NAME" '.runners[] | select(.name==$n) | .id' | head -n1)"
+          if [ -n "$id" ]; then
+            curl -fsS -X DELETE "${hdr[@]}" "$api/$id" && echo "removed runner $RUNNER_NAME (id $id)"
+          else
+            echo "no runner named $RUNNER_NAME registered"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## provision: DESTROYED ${SERVER_NAME}"
+            echo ""
+            echo "Server, firewall and runner registration removed. The SQLite data on the server is gone"
+            echo "unless you copied /var/lib/surf/data/backups elsewhere first."
+          } >> "$GITHUB_STEP_SUMMARY"
