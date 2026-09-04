@@ -1,0 +1,36 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/strike"
+    },
+    {
+      "path": "../../packages/ew-engine"
+    },
+    {
+      "path": "../../packages/market-data"
+    },
+    {
+      "path": "../../packages/ingestion"
+    },
+    {
+      "path": "../../packages/agents"
+    },
+    {
+      "path": "../../packages/telegram"
+    }
+  ]
+}

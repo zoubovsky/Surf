@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/strike" },
+    { "path": "packages/ew-engine" },
+    { "path": "packages/market-data" },
+    { "path": "packages/ingestion" },
+    { "path": "packages/agents" },
+    { "path": "packages/telegram" },
+    { "path": "apps/daemon" }
+  ]
+}
