@@ -26,7 +26,8 @@ export interface ZigZagResult {
 /**
  * ATR-scaled ZigZag. A reversal is confirmed when price moves against the current leg's extreme
  * by more than `k × ATR(atrPeriod)` at that bar. While a leg extends to a new extreme, the
- * provisional pivot is replaced. Fully causal: a pivot confirmed at bar i depends only on bars
+ * provisional pivot is replaced (and that bar is not tested for a reversal, so a single wide-range
+ * bar never yields both a high and a low pivot). Fully causal: a pivot confirmed at bar i depends only on bars
  * ≤ i, so appending candles never rewrites earlier confirmed pivots.
  *
  * During ATR warm-up the threshold uses the expanding mean of true ranges seen so far.
@@ -85,10 +86,10 @@ export function zigzagDetailed(candles: readonly Candle[], opts: ZigZagOptions =
 
     if (trend === 1) {
       if (c.high > maxHi) {
+        // Extension bar: replace the provisional pivot; reversal is tested from the next bar.
         maxHi = c.high;
         maxHiIdx = i;
-      }
-      if (maxHi - c.low > thr(i)) {
+      } else if (maxHi - c.low > thr(i)) {
         confirmed.push(pivot(maxHiIdx, maxHi, "high"));
         trend = -1;
         minLo = c.low;
@@ -98,8 +99,7 @@ export function zigzagDetailed(candles: readonly Candle[], opts: ZigZagOptions =
       if (c.low < minLo) {
         minLo = c.low;
         minLoIdx = i;
-      }
-      if (c.high - minLo > thr(i)) {
+      } else if (c.high - minLo > thr(i)) {
         confirmed.push(pivot(minLoIdx, minLo, "low"));
         trend = 1;
         maxHi = c.high;
