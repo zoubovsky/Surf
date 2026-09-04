@@ -1,0 +1,39 @@
+# @surf/agents
+
+LLM stages for the Surf trading loops, built directly on `@anthropic-ai/sdk` (ADR 0003): `client.messages.parse` + `zodOutputFormat` for structured outputs, `client.beta.messages.toolRunner` + `betaZodTool` where a stage needs tools. Every stage is a pure function over an injected `LlmClient`, returns the exact `@surf/core` Zod type, and comes back in a `StageResult` envelope: `{ output, usage, model, promptHash, durationMs }`.
+
+## Stages
+
+| Stage | Model (env) | Input | Output | Notes | Est. cost / call |
+|---|---|---|---|---|---|
+| `triage(deps, transcript, title)` | `MODEL_TRIAGE` (Haiku 4.5) | transcript (first 20k chars), title | `TriageResult` `{relevant, isBitcoinAnalysis, substantive, reason}` | no thinking, `max_tokens` 512 | ~$0.01 |
+| `extractPrior(deps, {videoId, title, publishedAt, transcriptText, keywordWindows})` | `MODEL_ANALYST` (Opus 5, adaptive, effort high) | full transcript | `AnalystPrior` + `verification: EvidenceReport` | `verifyEvidence` drops any level not present in a verbatim span (accepts `79k` / `79,000` / `79000` / `79.5 thousand`), lowers confidence when it drops anything, throws `UnsupportedPriorError` if no span verifies; identity fields (`videoId`, `title`, `publishedAt`, `asset: "BTC"`) come from our metadata | ~$0.15–0.30 |
+| `research(deps, {market, funding, openInterestHistory, recentCloses?, recentHeadlines?, calendar?})` | `MODEL_RESEARCHER` (Sonnet 5, adaptive, medium) | code-owned numbers | `MarketContext` (+ `notes`, `pausedTurns`, `iterations`) | tool runner: `get_market_numbers` (injected data) + server `web_search_20260209` (`max_uses` 4, allow-list of 8 domains); `pause_turn` is resumed and counted; a second `parse` call coerces the notes into the schema; `asOf`/`fundingRateHourly` are forced from the snapshot; `brief` clipped to 1500 | ~$0.05–0.10 |
+| `analyze(deps, AnalyzeInput, {revision?})` | `MODEL_ANALYST` (Opus 5, adaptive, high) | 1h/4h `EwAnalysis`, `AnalystPrior \| null`, `MarketContext`, account/market/state, plan-shaping limits, `CalibrationSummary`, lessons, open position | `TradePlan` | strategy from game plan §2 encoded in the frozen system prompt; reviewer feedback is appended as a `role: "system"` message (Opus 5) or a tagged user block; sizing/leverage/loss limits are never in the prompt | ~$0.20–0.40 |
+| `review(deps, ReviewInput, ReviewerTools)` | `MODEL_REVIEWER` (Opus 5, adaptive, high) | plan + same evidence, no analyst reasoning beyond `rationale` | `ReviewVerdict` (+ `findings`, `prechecks`, `enforced`) | adversarial prompt ("Assume this plan is wrong…"); tools `get_candidate`, `check_stop_vs_invalidation`, `recompute_reward_risk`, `get_prior_levels` (`createReviewerTools` provides deterministic defaults); code enforces `adjustedConfidence ≤ plan.confidence`, untraceable evidence ⇒ `evidenceTraceable=false` and approve→revise, unknown candidate ⇒ reject | ~$0.25–0.45 |
+| `postTradeReview(deps, {journalEntry, outcomeFacts, activeLessons})` | Opus 5 (medium) | journal + code-computed facts | `PostTradeReviewOutput` `{decisionQuality, outcome, failureMode, lesson, summary}` | lesson always carries the trade id | ~$0.10 |
+| `dailyBrief(deps, DailyBriefInput)` | Sonnet 5 (low) | structured sections | `string` ≤ 1200 chars (plain prose) | daemon wraps in HTML | ~$0.02 |
+| `answerQuestion(deps, {question, context})` | Sonnet 5 (low) | read-only context | `string` ≤ 1200 chars | no tools; question wrapped as untrusted | ~$0.02 |
+
+`deps` is `{ client: LlmClient; model: string }`. Input types not in `@surf/core` (`TriageResult`, `CalibrationSummary`, `JournalEntry`, `OutcomeFacts`, `DailyBriefInput`, `AnswerQuestionInput`, `OpenPositionContext`, `StageRecord`) are Zod schemas in `src/types.ts`.
+
+## Orchestration
+
+`runDecisionStages(deps, inputs)` runs research → analyze → review with at most `MAX_REVISIONS = 2` revisions (reviewer `revise` re-runs analyze with the reasons attached; `reject` stops) and a per-cycle USD budget checked after every stage. Returns `{ plan, review, context, stages: StageRecord[], totalUsage, terminal: "approved" | "rejected" | "exhausted", reason, revisions }`. `exhausted` (budget or revisions) is never success. `no-trade` plans skip the reviewer by default (`skipReviewForNoTrade`). Typical full cycle: **~$0.5–1.0** (research ≈ $0.08, analyze ≈ $0.30, review ≈ $0.35; each revision adds ≈ $0.65). With the pre-gate's 4–8 cycles/day that is roughly $3–8/day before caching; the 1h-TTL cached system prompts cut the input side by ~80% on warm hours.
+
+## Prompts and caching
+
+One file per stage in `src/prompts/`: a frozen `SYSTEM_*` constant (no dates, ids or conditional sections; `promptHash` = sha256 of it) sent as a single system block with `cache_control: { type: "ephemeral", ttl: "1h" }`, and a builder for the volatile user message rendered with sorted keys. Third-party text (transcripts, titles, headlines, operator questions) is wrapped by `untrustedBlock()` in `<untrusted_*>` tags preceded by a notice that it is data, not instructions. Haiku 4.5 needs a 4096-token prefix to cache, so the triage breakpoint is effectively inert; the Opus/Sonnet prompts are above their minimums.
+
+Structured outputs cannot carry `maxLength`, so the API receives a `lenient()` twin of each schema; the reply is `conform()`ed (strings clipped, arrays truncated) and then validated with the exact core schema.
+
+## Client, usage, errors
+
+- `createAnthropic({ apiKey, maxRetries = 3, timeout })` → `LlmClient` (`parse`, `toolRunner`, `countTokens`). `wrapAnthropic(sdk)` adapts an existing SDK instance. SDK ≥ 0.123 auto-resumes `pause_turn`, so `resumePausedTurn` is a no-op there (documented in `client.ts`).
+- `UsageMeter` / `usageToTotals(model, usage)` price input, cache reads, cache writes (1.25× for 5m, 2× for 1h when the breakdown is present) and output for `claude-opus-5` ($5/$25, read $0.50), `claude-sonnet-5` ($2/$10, read $0.20), `claude-haiku-4-5` ($1/$5, read $0.10), `claude-fable-5-1` ($10/$50, read $0.25). Dated ids resolve by prefix; unknown models price at the Fable row.
+- Errors: `LlmRefusalError` (`stop_reason: "refusal"`), `LlmTruncatedError` (`max_tokens`), `LlmOutputError` (schema/invariant failure), `UnsupportedPriorError`.
+- `src/testing/fake-client.ts` exports `createFakeClient`, `fakeMessage`, `fakeResponse`, `stageOf` for tests in other packages.
+
+## Environment
+
+`ANTHROPIC_API_KEY`, `MODEL_TRIAGE`, `MODEL_RESEARCHER`, `MODEL_ANALYST`, `MODEL_REVIEWER`, `PRIOR_MAX_AGE_HOURS` (defaults live in `@surf/core` `AppConfig`); the per-cycle budget is passed by the daemon from `DAILY_LLM_BUDGET_USD`.
