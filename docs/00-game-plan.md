@@ -2,7 +2,7 @@
 
 _Autonomous Bitcoin 1h trading system: Elliott Wave analysis seeded by the More Crypto Online channel, executed on Strike Finance perpetuals, governed by a loop-engineered multi-agent harness with an independent reviewer and a closed feedback loop._
 
-Status: **design proposal, awaiting decisions in §13.** Nothing here is deployed. Research backing every claim is in `docs/research/`.
+Status: **decisions taken 2026-09-04, build in progress.** The operator's answers to §11 are recorded as ADRs in `docs/decisions/`; where an ADR differs from this plan (SQLite instead of Postgres, the Anthropic SDK instead of the Agent SDK, full autonomy with notification only, live trading from the first deployment), the ADR wins. Research backing every claim is in `docs/research/`. Operator setup steps are in `docs/SETUP.md`.
 
 ---
 
@@ -274,7 +274,11 @@ Rough effort: phases 1–4 are the bulk, roughly 5–7 focused build weeks with 
 
 ---
 
-## 11. Decisions needed from you
+## 11. Decisions (answered; kept for the record)
+
+Answers as of 2026-09-04: risk defaults accepted (A1–A4); full autonomy with notification only, no veto windows (B5–B6); hosting left to the agent, resolved as a Hetzner VPS driven from GitHub Actions (C7); Strike account and API wallet exist, no testnet, live from the start (C8); Telegram and Anthropic credentials go into GitHub secrets per `docs/SETUP.md` (C9–C10); Bitcoin-titled long-form videos only (D11); trade on the system's own count, use videos to correct it, no trade on material disagreement, high confidence only (D12); Strike index as reference series (D13); brief at 07:00 Europe/London pending change (D14); TypeScript (E15).
+
+Original questions:
 
 Grouped by how much they change the build. Defaults are what I will assume if you just say "go with your recommendations."
 
