@@ -74,7 +74,8 @@ export const fmtPctAbs = (n: number | null | undefined): string => (n == null ? 
 export const fmtR = (n: number | null | undefined): string =>
   n == null ? na : `${sign(n)}${R.format(Math.abs(n))}R`;
 export const fmtInt = (n: number | null | undefined): string => (n == null ? na : INT.format(n));
-export const fmtLeverage = (n: number | null | undefined): string => (n == null ? na : `${nf(0, 1).format(n)}x`);
+export const fmtLeverage = (n: number | null | undefined): string =>
+  n == null ? na : `${nf(0, 1).format(n)}x`;
 /** Score 0..1 as two decimals. */
 export const fmtScore = (n: number): string => R.format(n);
 
@@ -102,7 +103,8 @@ export function fmtDuration(ms: number): string {
 export const fmtAge = (ms: number | null | undefined, now: number): string =>
   ms == null ? na : `${fmtDuration(now - ms)} ago`;
 
-const dirArrow = (d: "long" | "short" | null | undefined) => (d === "long" ? "▲ LONG" : d === "short" ? "▼ SHORT" : "—");
+const dirArrow = (d: "long" | "short" | null | undefined) =>
+  d === "long" ? "▲ LONG" : d === "short" ? "▼ SHORT" : "—";
 
 const zone = (z: { low: number; high: number } | null | undefined) =>
   z ? `${fmtPrice(z.low)}–${fmtPrice(z.high)}` : na;
@@ -207,9 +209,12 @@ export function formatCount(a: EwAnalysis): string {
   if (a.candidates.length === 0) return [...head, "", "No rule-valid count at the moment."].join("\n");
   const top = [...a.candidates].sort((x, y) => y.score - x.score).slice(0, 3);
   const more = a.candidates.length > 3 ? [``, `${a.candidates.length - 3} more candidate(s) not shown.`] : [];
-  return [...head, "", ...top.map((c, i) => formatCandidate(c, i + 1)).flatMap((x, i) => (i === 0 ? [x] : ["", x])), ...more].join(
-    "\n",
-  );
+  return [
+    ...head,
+    "",
+    ...top.map((c, i) => formatCandidate(c, i + 1)).flatMap((x, i) => (i === 0 ? [x] : ["", x])),
+    ...more,
+  ].join("\n");
 }
 
 export function formatStatus(s: StatusReport, now = s.asOf): string {
@@ -221,8 +226,18 @@ export function formatStatus(s: StatusReport, now = s.asOf): string {
   if (s.halted) rows.push(["Halt reason", `${s.haltReason ?? "unknown"} (since ${fmtTime(s.haltedAt)})`]);
   rows.push(
     ["Uptime", fmtDuration(now - s.startedAt)],
-    ["Last candle", s.lastCandleCloseTime == null ? na : `${fmtTime(s.lastCandleCloseTime)} (${fmtAge(s.lastCandleCloseTime, now)})`],
-    ["Last cycle", s.lastCycleAt == null ? na : `${fmtAge(s.lastCycleAt, now)}${s.lastCycleTerminal ? ` → ${s.lastCycleTerminal}` : ""}`],
+    [
+      "Last candle",
+      s.lastCandleCloseTime == null
+        ? na
+        : `${fmtTime(s.lastCandleCloseTime)} (${fmtAge(s.lastCandleCloseTime, now)})`,
+    ],
+    [
+      "Last cycle",
+      s.lastCycleAt == null
+        ? na
+        : `${fmtAge(s.lastCycleAt, now)}${s.lastCycleTerminal ? ` → ${s.lastCycleTerminal}` : ""}`,
+    ],
     ["Positions", `${s.openPositions} open · ${s.openOrders} orders`],
     ["Entries today", `${s.entriesToday} · stop-outs in a row: ${s.consecutiveStopOuts}`],
     ["LLM spend", `${fmtUsdAbs(s.llmSpendTodayUsd)} / ${fmtUsdAbs(s.llmBudgetUsd)} today`],
@@ -284,7 +299,11 @@ export function formatWhy(t: TradeExplanation): string {
     `${b("Rationale")}\n${escapeHtml(truncate(t.rationale, 1500))}`,
   );
   if (t.reviewReasons.length > 0) {
-    lines.push("", b("Reviewer"), ...t.reviewReasons.slice(0, 8).map((r) => `• ${escapeHtml(truncate(r, 300))}`));
+    lines.push(
+      "",
+      b("Reviewer"),
+      ...t.reviewReasons.slice(0, 8).map((r) => `• ${escapeHtml(truncate(r, 300))}`),
+    );
   }
   lines.push("", `${b("Risk")} ${escapeHtml(truncate(t.riskSummary, 300))}`);
   if (t.evidence.length > 0) {
@@ -294,7 +313,14 @@ export function formatWhy(t: TradeExplanation): string {
     lines.push(
       "",
       b("Timeline"),
-      pre(escapeHtml(t.events.slice(-12).map((e) => `${fmtTime(e.at)}  ${e.kind.padEnd(12)} ${truncate(e.detail, 60)}`).join("\n"))),
+      pre(
+        escapeHtml(
+          t.events
+            .slice(-12)
+            .map((e) => `${fmtTime(e.at)}  ${e.kind.padEnd(12)} ${truncate(e.detail, 60)}`)
+            .join("\n"),
+        ),
+      ),
     );
   }
   return lines.join("\n");
@@ -327,12 +353,16 @@ export function formatDecision({ plan, review, risk, order }: DecisionSummary): 
       : plan.action === "adjust-stop"
         ? `${action} → ${fmtPrice(plan.newStop?.price)}`
         : action;
-  const lines = [`${b("Decision")} ${headline} · ${risk.verdict === "allow" ? "✅ allowed" : "⛔ " + risk.terminal}`];
+  const lines = [
+    `${b("Decision")} ${headline} · ${risk.verdict === "allow" ? "✅ allowed" : "⛔ " + risk.terminal}`,
+  ];
 
   const planLines: string[] = [];
   if (plan.entry) planLines.push(`Entry ${zone(plan.entry)} (${plan.entryKind ?? "?"})`);
-  if (plan.stopLoss) planLines.push(`Stop ${fmtPrice(plan.stopLoss.price)} — ${escapeHtml(plan.stopLoss.label)}`);
-  if (plan.takeProfit) planLines.push(`Target ${fmtPrice(plan.takeProfit.price)} — ${escapeHtml(plan.takeProfit.label)}`);
+  if (plan.stopLoss)
+    planLines.push(`Stop ${fmtPrice(plan.stopLoss.price)} — ${escapeHtml(plan.stopLoss.label)}`);
+  if (plan.takeProfit)
+    planLines.push(`Target ${fmtPrice(plan.takeProfit.price)} — ${escapeHtml(plan.takeProfit.label)}`);
   planLines.push(
     `Confidence ${plan.confidence} · candidate ${plan.candidateId ? code(plan.candidateId) : na} · prior ${plan.priorVideoId ? code(plan.priorVideoId) : "none"}${plan.priorDisagrees ? " ⚠️ prior disagrees" : ""}`,
   );
@@ -349,7 +379,8 @@ export function formatDecision({ plan, review, risk, order }: DecisionSummary): 
 
   const failed = risk.checks.filter((c) => !c.passed);
   lines.push("", `${b("Risk")} ${risk.verdict} · ${escapeHtml(risk.summary)}`);
-  if (failed.length > 0) lines.push(...failed.slice(0, 6).map((c) => `✗ ${escapeHtml(c.rule)}: ${escapeHtml(c.detail)}`));
+  if (failed.length > 0)
+    lines.push(...failed.slice(0, 6).map((c) => `✗ ${escapeHtml(c.rule)}: ${escapeHtml(c.detail)}`));
   else lines.push(`${risk.checks.length} checks passed`);
 
   if (order) lines.push("", b("Order"), formatOrder(order));
@@ -386,7 +417,14 @@ export interface FillEvent {
 }
 
 export function formatFill(e: FillEvent): string {
-  const label = e.role === "entry" ? "Entry filled" : e.role === "stop-loss" ? "Stop hit" : e.role === "take-profit" ? "Target hit" : "Exit filled";
+  const label =
+    e.role === "entry"
+      ? "Entry filled"
+      : e.role === "stop-loss"
+        ? "Stop hit"
+        : e.role === "take-profit"
+          ? "Target hit"
+          : "Exit filled";
   const partial = e.partial ? " (partial)" : "";
   const fee = e.feeUsd != null ? ` · fee ${fmtUsdAbs(e.feeUsd)}` : "";
   return `${b(label)}${partial} · trade ${code(e.tradeId)}\n${dirArrow(e.direction)} ${escapeHtml(e.symbol)} ${fmtSize(e.size)} @ ${fmtPrice(e.price)}${fee} · ${fmtTime(e.at)}`;
@@ -441,11 +479,19 @@ export function formatPrior(p: AnalystPrior): string {
     `${b("Primary")} ${escapeHtml(truncate(p.primaryCount, 400))}`,
   ];
   if (p.alternateCount) lines.push(`${b("Alternate")} ${escapeHtml(truncate(p.alternateCount, 400))}`);
-  lines.push(`${b("Invalidation")} ${p.invalidation ? `${fmtPrice(p.invalidation.price)} — ${escapeHtml(p.invalidation.label)}` : na}`);
+  lines.push(
+    `${b("Invalidation")} ${p.invalidation ? `${fmtPrice(p.invalidation.price)} — ${escapeHtml(p.invalidation.label)}` : na}`,
+  );
   if (p.entryZone) lines.push(`${b("Entry zone")} ${zone(p.entryZone)} — ${escapeHtml(p.entryZone.label)}`);
-  if (p.targets.length > 0) lines.push(`${b("Targets")} ${p.targets.map((t) => fmtPrice(t.price)).join(", ")}`);
+  if (p.targets.length > 0)
+    lines.push(`${b("Targets")} ${p.targets.map((t) => fmtPrice(t.price)).join(", ")}`);
   if (p.keyLevels.length > 0) {
-    lines.push(`${b("Key levels")} ${p.keyLevels.slice(0, 6).map((l) => `${fmtPrice(l.price)} (${escapeHtml(l.label)})`).join(", ")}`);
+    lines.push(
+      `${b("Key levels")} ${p.keyLevels
+        .slice(0, 6)
+        .map((l) => `${fmtPrice(l.price)} (${escapeHtml(l.label)})`)
+        .join(", ")}`,
+    );
   }
   lines.push("", `<i>${escapeHtml(truncate(p.summary, 800))}</i>`);
   return lines.join("\n");
@@ -462,7 +508,11 @@ export interface HaltNotice {
 export function formatHalt(h: HaltNotice): string {
   const lines = [`🔴 ${b("TRADING HALTED")} · ${fmtTime(h.at)}`, `Reason: ${escapeHtml(h.reason)}`];
   if (h.detail) lines.push(escapeHtml(truncate(h.detail, 400)));
-  lines.push(h.resumesAt ? `Auto re-arm at ${fmtTime(h.resumesAt)} unless paused.` : "Open positions and stops are still managed. No new entries.");
+  lines.push(
+    h.resumesAt
+      ? `Auto re-arm at ${fmtTime(h.resumesAt)} unless paused.`
+      : "Open positions and stops are still managed. No new entries.",
+  );
   return lines.join("\n");
 }
 
@@ -481,7 +531,9 @@ export function formatResumed(r: ResumeNotice): string {
 }
 
 export function formatPaused(opts: { flatten: boolean; at: number; detail?: string }): string {
-  const lines = [`⏸ ${b(opts.flatten ? "Paused and flattening" : "Paused new entries")} · ${fmtTime(opts.at)}`];
+  const lines = [
+    `⏸ ${b(opts.flatten ? "Paused and flattening" : "Paused new entries")} · ${fmtTime(opts.at)}`,
+  ];
   if (opts.detail) lines.push(escapeHtml(truncate(opts.detail, 400)));
   return lines.join("\n");
 }
@@ -507,7 +559,9 @@ export function formatUnauthorized(chatId: number, username: string | undefined,
 /** Daily brief scaffold: a dated header and one bold-titled block per section. Bodies are HTML. */
 export function formatDailyBrief(sections: BriefSection[], date = new Date()): string {
   const day = date.toISOString().slice(0, 10);
-  const blocks = sections.filter((s) => s.body.trim().length > 0).map((s) => `${b(escapeHtml(s.title))}\n${s.body.trim()}`);
+  const blocks = sections
+    .filter((s) => s.body.trim().length > 0)
+    .map((s) => `${b(escapeHtml(s.title))}\n${s.body.trim()}`);
   return [`📋 ${b(`Daily brief`)} · ${day}`, ...blocks].join("\n\n");
 }
 
@@ -556,15 +610,15 @@ export function splitMessage(html: string, limit = TELEGRAM_MAX_MESSAGE): string
       inPre = after;
       continue;
     }
-    // A single line longer than the limit: hard-split it.
+    // A single line longer than the limit: hard-split it, tracking <pre> state per piece.
     const room = Math.max(1, limit - PRE_OPEN.length - PRE_CLOSE.length);
     for (let i = 0; i < line.length; i += room) {
       const piece = line.slice(i, i + room);
-      const last = i + room >= line.length;
-      if (!fits(piece, last ? after : inPre)) push();
+      const pieceAfter = preStateAfter(piece, inPre);
+      if (!fits(piece, pieceAfter)) push();
       append(piece);
-      if (last) inPre = after;
-      else push();
+      inPre = pieceAfter;
+      if (i + room < line.length) push();
     }
   }
   push();
