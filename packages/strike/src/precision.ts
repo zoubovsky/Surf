@@ -22,10 +22,19 @@ function trailingZeros(frac: string): number {
   return n;
 }
 
+/** Numeric step -> plain decimal string without exponent notation or float noise. */
 function stepToString(step: number): string {
   if (!Number.isFinite(step) || step <= 0) throw new RangeError(`invalid step: ${step}`);
-  // toFixed(20) avoids exponent notation for small steps; trim trailing zeros.
-  return step.toFixed(20).replace(/0+$/, "").replace(/\.$/, "");
+  const s = String(step);
+  if (!/e/i.test(s)) return s;
+  const [mantissa = "", expStr = "0"] = s.split(/e/i);
+  const exp = Number(expStr);
+  const [intPart = "0", fracPart = ""] = mantissa.split(".");
+  const digits = intPart + fracPart;
+  const pointPos = intPart.length + exp;
+  if (pointPos <= 0) return "0." + "0".repeat(-pointPos) + digits;
+  if (pointPos >= digits.length) return digits + "0".repeat(pointPos - digits.length);
+  return digits.slice(0, pointPos) + "." + digits.slice(pointPos);
 }
 
 /**
@@ -53,7 +62,11 @@ export function formatSize(size: number, stepSize: string | number = "0.00001"):
 }
 
 /** Prices are rounded to the tick. Default tick is BTC-USD. */
-export function formatPrice(price: number, tickSize: string | number = "0.1", mode: RoundingMode = "round"): string {
+export function formatPrice(
+  price: number,
+  tickSize: string | number = "0.1",
+  mode: RoundingMode = "round",
+): string {
   return formatToStep(price, tickSize, mode);
 }
 

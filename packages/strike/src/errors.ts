@@ -30,7 +30,9 @@ export class StrikeApiError extends Error {
     method: string;
     path: string;
   }) {
-    super(`${args.method} ${args.path} -> ${args.status}${args.code ? ` ${args.code}` : ""}: ${args.message}`);
+    super(
+      `${args.method} ${args.path} -> ${args.status}${args.code ? ` ${args.code}` : ""}: ${args.message}`,
+    );
     this.status = args.status;
     this.code = args.code;
     this.body = args.body;
@@ -104,9 +106,7 @@ export class StrikeConfigError extends Error {
 /** A request did not complete (network failure or timeout). Distinct from a venue error response. */
 export class StrikeNetworkError extends Error {
   override readonly name = "StrikeNetworkError";
-  readonly cause2: unknown;
   constructor(message: string, cause: unknown) {
-    super(message);
-    this.cause2 = cause;
+    super(message, { cause });
   }
 }

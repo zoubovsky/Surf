@@ -34,7 +34,8 @@ export const AUTH_HEADER_NONCE = "X-API-Wallet-Nonce";
 /** Accept a 64-hex-char string or 32 raw bytes. */
 export function toKeyBytes(key: HexOrBytes, label = "key"): Uint8Array {
   const bytes = typeof key === "string" ? hexToBytes(key.trim().replace(/^0x/i, "")) : key;
-  if (bytes.length !== 32) throw new RangeError(`${label} must be 32 bytes (64 hex chars), got ${bytes.length}`);
+  if (bytes.length !== 32)
+    throw new RangeError(`${label} must be 32 bytes (64 hex chars), got ${bytes.length}`);
   return bytes;
 }
 
@@ -104,7 +105,9 @@ export interface SignedRequest {
  */
 export function signRequest(input: SignRequestInput): SignedRequest {
   const priv = toKeyBytes(input.privateKey, "privateKey");
-  const publicKey = input.publicKey ? bytesToHex(toKeyBytes(input.publicKey, "publicKey")) : bytesToHex(ed.getPublicKey(priv));
+  const publicKey = input.publicKey
+    ? bytesToHex(toKeyBytes(input.publicKey, "publicKey"))
+    : bytesToHex(ed.getPublicKey(priv));
   const { message, bodyHash } = buildSignatureMessage(input);
   const signature = bytesToHex(ed.sign(utf8ToBytes(message), priv));
   return {
@@ -172,17 +175,27 @@ export interface UserStreamLogonInput {
 }
 
 /** Build the signed `session.logon` frame for the user WebSocket. Pure given a fixed timestamp. */
-export function userStreamLogon(input: UserStreamLogonInput): { message: LogonMessage; signedPayload: string } {
+export function userStreamLogon(input: UserStreamLogonInput): {
+  message: LogonMessage;
+  signedPayload: string;
+} {
   const apiKey = input.apiKey ?? derivePublicKeyHex(input.privateKey);
   const signedPayload = buildLogonMessage(apiKey, input.timestampMs, input.format);
   const signature = signMessageHex(signedPayload, input.privateKey);
   return {
-    message: { method: "session.logon", params: { apiKey, signature, timestamp: input.timestampMs }, id: input.id ?? 1 },
+    message: {
+      method: "session.logon",
+      params: { apiKey, signature, timestamp: input.timestampMs },
+      id: input.id ?? 1,
+    },
     signedPayload,
   };
 }
 
-export function verifyLogonSignature(message: LogonMessage, format: LogonMessageFormat = "session.logon"): boolean {
+export function verifyLogonSignature(
+  message: LogonMessage,
+  format: LogonMessageFormat = "session.logon",
+): boolean {
   const payload = buildLogonMessage(message.params.apiKey, message.params.timestamp, format);
   return verifyMessageHex(payload, message.params.signature, message.params.apiKey);
 }
